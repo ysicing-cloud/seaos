@@ -24,8 +24,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/sirupsen/logrus"
 	"github.com/ysicing-cloud/sealos/install"
-	"github.com/ysicing-cloud/sealos/pkg/logger"
 )
 
 // Command is
@@ -48,7 +48,7 @@ func nameFromURL(url string) string {
 	tmp := path.Base(url)
 	name := strings.Split(tmp, ".tar")
 	if len(name) < 1 {
-		logger.Error("app package must *.tar, [%s] is invalid, %s", url, name)
+		logrus.Errorf("app package must *.tar, [%s] is invalid, %s", url, name)
 		os.Exit(1)
 	}
 	return name[0]
@@ -61,13 +61,13 @@ func LoadAppConfig(url string, flagConfig string) (*PkgConfig, error) {
 	if flagConfig == "" {
 		pkgConfig, err = LoadConfig(url)
 		if err != nil {
-			logger.Error("load config failed: %s", err)
+			logrus.Errorf("load config failed: %s", err)
 			os.Exit(0)
 		}
 	} else {
 		f, err := os.Open(flagConfig)
 		if err != nil {
-			logger.Error("load config failed: %s", err)
+			logrus.Errorf("load config failed: %s", err)
 			os.Exit(0)
 		}
 		pkgConfig, _ = configFromReader(f)
@@ -107,7 +107,7 @@ func LoadConfig(packageFile string) (*PkgConfig, error) {
 			return nil, err
 		}
 		if hdr.Name == "config" {
-			logger.Info("config content: ")
+			logrus.Info("config content: ")
 			config, err := configFromReader(tr)
 			return config, err
 		}
@@ -121,10 +121,10 @@ func configFromReader(reader io.Reader) (*PkgConfig, error) {
 	for scanner.Scan() {
 		command := Command{}
 		text := scanner.Text()
-		logger.Info(text) // Println will add back the final '\n'
+		logrus.Info(text) // Println will add back the final '\n'
 		name, cmd, err := decodeCmd(text)
 		if err != nil {
-			logger.Error(err)
+			logrus.Error(err)
 			continue
 		}
 		command.Name = name
@@ -215,7 +215,7 @@ type RunOnMaster struct {
 func send(host string, p *PkgConfig) {
 	remoteFilePath := fmt.Sprintf("%s/%s.tar", p.Workspace, p.Name)
 	if !CmdFileExist(host, remoteFilePath) {
-		logger.Info("%s%s is not exist , send package to nodes", host, remoteFilePath)
+		logrus.Infof("%s%s is not exist , send package to nodes", host, remoteFilePath)
 		install.SendPackage(p.URL, []string{host}, p.Workspace, nil, nil)
 	}
 	tarCmd := fmt.Sprintf("tar xvf %s.tar", p.Name)

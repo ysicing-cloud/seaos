@@ -17,16 +17,17 @@ package cmd
 import (
 	"os"
 
+	"github.com/ergoapi/log"
 	"github.com/spf13/cobra"
 	"github.com/ysicing-cloud/sealos/install"
-	"github.com/ysicing-cloud/sealos/pkg/logger"
+	"github.com/ysicing-cloud/sealos/internal/pkg/util/factory"
 )
 
 var exampleCleanCmd = `
 	# clean  master
 	sealos clean --master 192.168.0.2 \
 	--master 192.168.0.3
-  
+
 	# clean  node  use --force/-f will be not prompt 
 	sealos clean --node 192.168.0.4 \
 	--node 192.168.0.5 --force
@@ -34,56 +35,46 @@ var exampleCleanCmd = `
 	# clean master and node
 	sealos clean --master 192.168.0.2-192.168.0.3 \
  	--node 192.168.0.4-192.168.0.5
-	
+
 	# clean your kubernets HA cluster and use --force/-f will be not prompt (danger)
 	sealos clean --all -f
 `
 
-// cleanCmd represents the clean command
-var cleanCmd = &cobra.Command{
-	Use:     "clean",
-	Short:   "Simplest way to clean your kubernets HA cluster",
-	Long:    `sealos clean`,
-	Example: exampleCleanCmd,
-	Run:     CleanCmdFunc,
-}
-
-func init() {
-	rootCmd.AddCommand(cleanCmd)
-
+func CleanCmd(f factory.Factory) *cobra.Command {
+	cleanCmd := &cobra.Command{
+		Use:     "clean",
+		Short:   "Simplest way to clean your kubernets HA cluster",
+		Long:    `sealos clean`,
+		Example: exampleCleanCmd,
+		Run:     CleanCmdFunc,
+	}
 	// Here you will define your flags and configuration settings.
 	cleanCmd.Flags().StringSliceVar(&install.NodeIPs, "node", []string{}, "clean node ips.kubernetes multi-nodes ex. 192.168.0.5-192.168.0.5")
 	cleanCmd.Flags().StringSliceVar(&install.MasterIPs, "master", []string{}, "clean master ips.kubernetes multi-nodes ex. 192.168.0.5-192.168.0.5")
 	cleanCmd.PersistentFlags().BoolVarP(&install.CleanForce, "force", "f", false, "if this is true, will no prompt")
 	cleanCmd.PersistentFlags().BoolVar(&install.CleanAll, "all", false, "if this is true, delete all ")
 	cleanCmd.Flags().IntVar(&install.Vlog, "vlog", 0, "kubeadm log level")
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// cleanCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// cleanCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	return cleanCmd
 }
 
 func CleanCmdFunc(cmd *cobra.Command, args []string) {
+	slog := log.GetInstance()
 	deleteNodes := install.ParseIPs(install.NodeIPs)
 	deleteMasters := install.ParseIPs(install.MasterIPs)
 	c := &install.SealConfig{}
 	if err := c.Load(cfgFile); err != nil {
-		logger.Error(err)
+		slog.Error(err)
 		os.Exit(-1)
 	}
 
 	// 使用 sealos clean --node   不小心写了 masterip.
 	if ok, node := deleteOrJoinNodeIsExistInCfgNodes(deleteNodes, c.Masters); ok {
-		logger.Error(`clean master Use "sealos clean --master %s" to clean it, exit...`, node)
+		slog.Errorf(`clean master Use "sealos clean --master %s" to clean it, exit...`, node)
 		os.Exit(-1)
 	}
 	// 使用 sealos clean --master 不小心写了 nodeip.
 	if ok, node := deleteOrJoinNodeIsExistInCfgNodes(deleteMasters, c.Nodes); ok {
-		logger.Error(`clean nodes Use "sealos clean --node %s" to clean it, exit...`, node)
+		slog.Errorf(`clean nodes Use "sealos clean --node %s" to clean it, exit...`, node)
 		os.Exit(-1)
 	}
 

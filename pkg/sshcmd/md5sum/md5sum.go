@@ -19,7 +19,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/ysicing-cloud/sealos/pkg/logger"
+	"github.com/sirupsen/logrus"
 )
 
 func FromLocal(localPath string) string {
@@ -27,7 +27,7 @@ func FromLocal(localPath string) string {
 	c := exec.Command("sh", "-c", cmd)
 	out, err := c.CombinedOutput()
 	if err != nil {
-		logger.Error(err)
+		logrus.Error(err)
 	}
 	md5 := string(out)
 	md5 = strings.ReplaceAll(md5, "\n", "")

@@ -18,19 +18,17 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ysicing-cloud/sealos/install"
+	"github.com/ysicing-cloud/sealos/internal/pkg/util/factory"
 )
 
-// ipvsCmd represents the ipvs command
-var ipvsCmd = &cobra.Command{
-	Use:   "ipvs",
-	Short: "sealos create or care local ipvs lb",
-	Run: func(cmd *cobra.Command, args []string) {
-		install.Ipvs.VsAndRsCare()
-	},
-}
-
-func init() {
-	rootCmd.AddCommand(ipvsCmd)
+func IPVSCmd(f factory.Factory) *cobra.Command {
+	ipvsCmd := &cobra.Command{
+		Use:   "ipvs",
+		Short: "sealos create or care local ipvs lb",
+		Run: func(cmd *cobra.Command, args []string) {
+			install.Ipvs.VsAndRsCare()
+		},
+	}
 
 	// Here you will define your flags and configuration settings.
 	ipvsCmd.Flags().BoolVar(&install.Ipvs.RunOnce, "run-once", false, "is run once mode")
@@ -41,11 +39,5 @@ func init() {
 	ipvsCmd.Flags().StringVar(&install.Ipvs.HealthPath, "health-path", "/healthz", "health check path")
 	ipvsCmd.Flags().StringVar(&install.Ipvs.HealthSchem, "health-schem", "https", "health check schem")
 	ipvsCmd.Flags().Int32Var(&install.Ipvs.Interval, "interval", 5, "health check interval, unit is sec.")
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// ipvsCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// ipvsCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	return ipvsCmd
 }

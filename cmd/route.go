@@ -18,6 +18,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ysicing-cloud/sealos/install"
+	"github.com/ysicing-cloud/sealos/internal/pkg/util/factory"
 )
 
 var (
@@ -25,7 +26,7 @@ var (
 	gatewayIP string
 )
 
-func NewRouteCmd() *cobra.Command {
+func NewRouteCmd(f factory.Factory) *cobra.Command {
 	// routeCmd represents the route command
 	var cmd = &cobra.Command{
 		Use:   "route",
@@ -37,10 +38,6 @@ func NewRouteCmd() *cobra.Command {
 	cmd.AddCommand(NewDelRouteCmd())
 	cmd.AddCommand(NewAddRouteCmd())
 	return cmd
-}
-
-func init() {
-	rootCmd.AddCommand(NewRouteCmd())
 }
 
 func NewAddRouteCmd() *cobra.Command {

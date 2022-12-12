@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/sirupsen/logrus"
 	"github.com/ysicing-cloud/sealos/install"
-	"github.com/ysicing-cloud/sealos/pkg/logger"
 )
 
 type DeleteFlags struct {
@@ -42,7 +42,7 @@ func DeleteApp(flag *DeleteFlags, cfgFile string) error {
 	//TODO
 	c := &install.SealConfig{}
 	if err := c.Load(cfgFile); err != nil {
-		logger.Error(err)
+		logrus.Error(err)
 		c.ShowDefaultConfig()
 		os.Exit(0)
 	}
@@ -56,7 +56,7 @@ func DeleteApp(flag *DeleteFlags, cfgFile string) error {
 		prompt := fmt.Sprintf("delete command will del your installed %s App , continue delete (y/n)?", pkgConfig.Name)
 		result := install.Confirm(prompt)
 		if !result {
-			logger.Info("delete  %s App is skip, Exit", pkgConfig.Name)
+			logrus.Infof("delete  %s App is skip, Exit", pkgConfig.Name)
 			os.Exit(-1)
 		}
 	}
@@ -78,7 +78,6 @@ func NewDeleteCommands(cmds []Command) (Runner, Runner) {
 		case "DELETE":
 			masterOnlyCmd.Cmd = append(masterOnlyCmd.Cmd, c)
 		default:
-			// logger.Warn("Unknown command:%s,%s", c.Name, c.Cmd)
 			// don't care other commands
 		}
 	}

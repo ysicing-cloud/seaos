@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,7 +27,6 @@ import (
 	"github.com/ysicing-cloud/sealos/k8s"
 
 	"github.com/ysicing-cloud/sealos/net"
-	"github.com/ysicing-cloud/sealos/pkg/logger"
 )
 
 // BuildInit is
@@ -56,7 +54,7 @@ func BuildInit() {
 	i.Print("SendPackage", "KubeadmConfigInstall")
 	//生成kubeconfig的时候kubeadm的kubeconfig阶段会检查硬盘是否kubeconfig，有则跳过
 	//不用kubeadm init加选项跳过[kubeconfig]的阶段
-	i.CreateKubeconfig()
+	// i.CreateKubeconfig()
 
 	i.InstallMaster0()
 	i.Print("SendPackage", "KubeadmConfigInstall", "InstallMaster0")
@@ -81,7 +79,7 @@ func (s *SealosInstaller) getCgroupDriverFromShell(h string) string {
 		output = SSHConfig.CmdToString(h, cmd, " ")
 	}
 	output = strings.TrimSpace(output)
-	logger.Info("cgroup driver is %s", output)
+	s.Log.Infof("cgroup driver is %s", output)
 	return output
 }
 
@@ -92,10 +90,10 @@ func (s *SealosInstaller) KubeadmConfigInstall() {
 	if KubeadmFile == "" {
 		templateData = string(Template())
 	} else {
-		fileData, err := ioutil.ReadFile(KubeadmFile)
+		fileData, err := os.ReadFile(KubeadmFile)
 		defer func() {
 			if r := recover(); r != nil {
-				logger.Error("[globals]template file read failed:", err)
+				s.Log.Errorf("[globals]template file read failed: %v", err)
 			}
 		}()
 		if err != nil {
@@ -112,7 +110,7 @@ func (s *SealosInstaller) KubeadmConfigInstall() {
 		DNSDomain = kubeadm.Networking.DNSDomain
 		APIServerCertSANs = kubeadm.APIServer.CertSANs
 	} else {
-		logger.Warn("decode certSANs from config failed, using default SANs")
+		s.Log.Warn("decode certSANs from config failed, using default SANs")
 		APIServerCertSANs = getDefaultSANs()
 	}
 }
@@ -134,7 +132,7 @@ func (s *SealosInstaller) appendAPIServer() error {
 	etcHostMap := fmt.Sprintf("%s %s", IPFormat(s.Masters[0]), APIServer)
 	file, err := os.OpenFile(etcHostPath, os.O_RDWR|os.O_APPEND, 0666)
 	if err != nil {
-		logger.Error("open %s file error %s", etcHostPath, err)
+		s.Log.Errorf("open %s file error %s", etcHostPath, err)
 		os.Exit(1)
 	}
 	defer file.Close()
@@ -142,7 +140,7 @@ func (s *SealosInstaller) appendAPIServer() error {
 	for {
 		str, err := reader.ReadString('\n')
 		if strings.Contains(str, APIServer) {
-			logger.Info("local %s is already exists %s", etcHostPath, APIServer)
+			s.Log.Infof("local %s is already exists %s", etcHostPath, APIServer)
 			return nil
 		}
 		if err == io.EOF {
@@ -162,7 +160,7 @@ func (s *SealosInstaller) InstallMaster0() {
 	// remote server run sealos init . it can not reach apiserver.cluster.local , should add masterip apiserver.cluster.local to /etc/hosts
 	err := s.appendAPIServer()
 	if err != nil {
-		logger.Warn("append  %s %s to /etc/hosts err: %s", IPFormat(s.Masters[0]), APIServer, err)
+		s.Log.Warnf("append  %s %s to /etc/hosts err: %s", IPFormat(s.Masters[0]), APIServer, err)
 	}
 	//master0 do sth
 	cmd := fmt.Sprintf("grep -qF '%s %s' /etc/hosts || echo %s %s >> /etc/hosts", IPFormat(s.Masters[0]), APIServer, IPFormat(s.Masters[0]), APIServer)
@@ -172,7 +170,7 @@ func (s *SealosInstaller) InstallMaster0() {
 
 	output := SSHConfig.Cmd(s.Masters[0], cmd)
 	if output == nil {
-		logger.Error("[%s] install kubernetes failed. please clean and uninstall.", s.Masters[0])
+		s.Log.Errorf("[%s] install kubernetes failed. please clean and uninstall.", s.Masters[0])
 		os.Exit(1)
 	}
 	decodeOutput(output)
@@ -181,7 +179,7 @@ func (s *SealosInstaller) InstallMaster0() {
 	SSHConfig.Cmd(s.Masters[0], cmd)
 
 	if WithoutCNI {
-		logger.Info("--without-cni is true, so we not install calico or flannel, install it by yourself")
+		s.Log.Info("--without-cni is true, so we not install calico or flannel, install it by yourself")
 		return
 	}
 	//cmd = `kubectl apply -f /root/kube/conf/net/calico.yaml || true`
@@ -199,7 +197,7 @@ func (s *SealosInstaller) InstallMaster0() {
 			metajson = SSHConfig.CmdToString(s.Masters[0], "cat /root/kube/Metadata", "")
 			err := json.Unmarshal([]byte(metajson), &tmpdata)
 			if err != nil {
-				logger.Warn("get metadata version err: ", err)
+				s.Log.Warnf("get metadata version err: %v", err)
 			} else {
 				cniVersion = tmpdata.CniVersion
 				Network = tmpdata.CniName
@@ -216,10 +214,10 @@ func (s *SealosInstaller) InstallMaster0() {
 		K8sServiceHost: s.APIServer,
 		Version:        cniVersion,
 	}).Manifests("")
-	logger.Debug("cni yaml : \n", netyaml)
+	s.Log.Debugf("cni yaml: %s \n", netyaml)
 	home := zos.GetHomeDir()
 	configYamlDir := filepath.Join(home, ".sealos", "cni.yaml")
-	_ = ioutil.WriteFile(configYamlDir, []byte(netyaml), 0755)
+	_ = os.WriteFile(configYamlDir, []byte(netyaml), 0600)
 	SSHConfig.Copy(s.Masters[0], configYamlDir, "/tmp/cni.yaml")
 	SSHConfig.Cmd(s.Masters[0], "kubectl apply -f /tmp/cni.yaml")
 }
@@ -232,7 +230,7 @@ func (s *SealosInstaller) SendKubeConfigs(masters []string) {
 	s.sendKubeConfigFile(masters, "scheduler.conf")
 
 	if s.to11911192(masters) {
-		logger.Info("set 1191 1192 config")
+		s.Log.Info("set 1191 1192 config")
 	}
 }
 
@@ -241,7 +239,7 @@ func (s *SealosInstaller) SendJoinMasterKubeConfigs(masters []string) {
 	s.sendKubeConfigFile(masters, "controller-manager.conf")
 	s.sendKubeConfigFile(masters, "scheduler.conf")
 	if s.to11911192(masters) {
-		logger.Info("set 1191 1192 config")
+		s.Log.Info("set 1191 1192 config")
 	}
 }
 

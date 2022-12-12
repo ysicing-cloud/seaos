@@ -18,6 +18,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ysicing-cloud/sealos/install"
+	"github.com/ysicing-cloud/sealos/internal/pkg/util/factory"
 )
 
 // execCmd represents the exec command
@@ -26,26 +27,26 @@ var (
 	# exec cmd by label or nodes.  when --label and --node is Exist, get Union of both.
 	sealos exec --cmd "mkdir /data" --label node-role.kubernetes.io/master= --node 192.168.0.2
 	sealos exec --cmd "mkdir /data" --node 192.168.0.2 --nodes dev-k8s-mater
-	
+
 	# exec copy src file to dst by label or nodes. when --label and --node is Exist, get Union of both.
 	sealos exec --src /data/foo --dst /root/foo --label node-role.kubernetes.io/master=""
 	sealos exec --src /data/foo --dst /root/foo --node 192.168.0.2
 `
-	execCmd = &cobra.Command{
+)
+
+func ExecCmd(f factory.Factory) *cobra.Command {
+	execCmd := &cobra.Command{
 		Use:     "exec",
 		Short:   "support exec cmd or copy file by Label/nodes ",
 		Example: exampleExecCmd,
 		Run:     ExecCmdFunc,
 	}
-)
-
-func init() {
-	rootCmd.AddCommand(execCmd)
 	execCmd.Flags().StringVar(&install.Src, "src", "", "source file location")
 	execCmd.Flags().StringVar(&install.Dst, "dst", "", "dest file location")
 	execCmd.Flags().StringVar(&install.ExecCommand, "cmd", "", "exec command string")
 	execCmd.Flags().StringVar(&install.Label, "label", "", "kubernetes labels like node-role.kubernetes.io/master=")
 	execCmd.Flags().StringSliceVar(&install.ExecNode, "node", []string{}, "node ip or hostname in kubernetes")
+	return execCmd
 }
 
 func ExecCmdFunc(cmd *cobra.Command, args []string) {

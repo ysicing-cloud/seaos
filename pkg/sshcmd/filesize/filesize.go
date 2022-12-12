@@ -18,7 +18,7 @@ import (
 	"crypto/tls"
 	"net/http"
 
-	"github.com/ysicing-cloud/sealos/pkg/logger"
+	"github.com/sirupsen/logrus"
 )
 
 // Do is fetch file size
@@ -31,7 +31,7 @@ func Do(url string) int64 {
 	resp, err := client.Get(url)
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Error("[globals] get file size is error： %s", r)
+			logrus.Errorf("[globals] get file size is error： %s", r)
 		}
 	}()
 	if err != nil {

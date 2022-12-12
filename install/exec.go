@@ -15,12 +15,13 @@
 package install
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"sync"
 
+	"github.com/ergoapi/log"
 	"github.com/ysicing-cloud/sealos/k8s"
-	"github.com/ysicing-cloud/sealos/pkg/logger"
 )
 
 type ExecFlag struct {
@@ -42,31 +43,31 @@ var (
 
 func GetExecFlag(cfgFile string) *ExecFlag {
 	e := &ExecFlag{}
+	e.SealConfig.Log = log.GetInstance()
 	if !FileExist(k8s.KubeDefaultConfigPath) {
-		logger.Error("file %s is not exist", k8s.KubeDefaultConfigPath)
+		e.Log.Errorf("file %s is not exist", k8s.KubeDefaultConfigPath)
 		os.Exit(ErrorExitOSCase)
 	}
 	err := e.Load(cfgFile)
 	if err != nil {
-		logger.Error(err)
+		e.Log.Error(err)
 		e.ShowDefaultConfig()
 		os.Exit(0)
 	}
 	e.Dst = Dst
 	e.Src = Src
-	// logger.Info("get label", Label)
 	e.Label = Label
 	e.Cmd = ExecCommand
 
 	// change labels ==> to ip
 	k8sClient, err := k8s.NewClient(k8s.KubeDefaultConfigPath, nil)
 	if err != nil {
-		logger.Error("get k8s client err: ", err)
+		e.Log.Errorf("get k8s client err: %v", err)
 		os.Exit(ErrorExitOSCase)
 	}
 	e.ExecNode, err = k8s.TransToIP(k8sClient, Label, ExecNode)
 	if err != nil {
-		logger.Error("get ips err: ", err)
+		e.Log.Errorf("get ips err: %v", err)
 		os.Exit(ErrorExitOSCase)
 	}
 	e.transToIps()
@@ -129,7 +130,7 @@ func (e *ExecFlag) copyByNodeIP() {
 			defer wg.Done()
 			// 存在就直接跳过。 不存在才执行
 			if SSHConfig.IsFileExist(node, e.Dst) {
-				logger.Info("[%s] is exist on remote host [%s]. skip...", e.Dst, node)
+				e.Log.Infof("[%s] is exist on remote host [%s]. skip...", e.Dst, node)
 				return
 			}
 			SSHConfig.CopyLocalToRemote(node, e.Src, e.Dst)
@@ -149,4 +150,10 @@ func (e *ExecFlag) execByNodeIP() {
 		}(n)
 	}
 	wg.Wait()
+}
+
+// CmdWorkSpace exec cmd on specified workdir.
+func CmdWorkSpace(node, cmd, workdir string) {
+	command := fmt.Sprintf("cd %s && %s", workdir, cmd)
+	_ = SSHConfig.CmdAsync(node, command)
 }

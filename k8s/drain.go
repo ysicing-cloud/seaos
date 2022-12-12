@@ -18,12 +18,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-
-	"github.com/ysicing-cloud/sealos/pkg/logger"
 )
 
 const (
@@ -69,7 +68,7 @@ func CordonUnCordon(k8sClient *kubernetes.Clientset, nodeName string, cordoned b
 		return err
 	}
 	if node.Spec.Unschedulable == cordoned {
-		logger.Info("Node %s is already Uncordoned, skip...", nodeName)
+		logrus.Infof("Node %s is already Uncordoned, skip...", nodeName)
 		return nil
 	}
 	node.Spec.Unschedulable = cordoned

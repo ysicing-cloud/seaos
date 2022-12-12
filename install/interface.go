@@ -18,28 +18,28 @@ type Check interface {
 	CheckValid()
 }
 
-//Send is
+// Send is
 type Send interface {
 	SendPackage()
 }
 
-//PreInit is
+// PreInit is
 type PreInit interface {
 	KubeadmConfigInstall()
 	InstallMaster0()
 }
 
-//Print is
+// Print is
 type Print interface {
 	Print(process ...string)
 }
 
-//Clean is
+// Clean is
 type Clean interface {
 	Clean()
 }
 
-//Join is
+// Join is
 type Join interface {
 	JoinMasters()
 	JoinNodes()

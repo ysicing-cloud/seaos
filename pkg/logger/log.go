@@ -17,7 +17,7 @@ package logger
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"runtime"
 	"strings"
@@ -131,7 +131,7 @@ func NewLogger(depth ...int) *LocalLogger {
 	return l
 }
 
-//配置文件
+// 配置文件
 type logConfig struct {
 	TimeFormat string         `json:"TimeFormat"`
 	Console    *consoleLogger `json:"Console,omitempty"`
@@ -364,7 +364,7 @@ func SetLogger(param ...string) error {
 			return err
 		}
 
-		contents, err := ioutil.ReadAll(fd)
+		contents, err := io.ReadAll(fd)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Could not read %s: %s\n", c, err)
 			os.Exit(1)

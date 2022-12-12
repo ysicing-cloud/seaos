@@ -17,7 +17,7 @@ package sshutil
 import (
 	"testing"
 
-	"github.com/ysicing-cloud/sealos/pkg/logger"
+	"github.com/sirupsen/logrus"
 )
 
 func TestSSHCopyLocalToRemote(t *testing.T) {
@@ -69,11 +69,11 @@ func TestSSHCopyLocalToRemote(t *testing.T) {
 			}
 
 			if !fileExist(tt.args.localPath) {
-				logger.Error("local filepath is not exit")
+				logrus.Error("local filepath is not exit")
 				return
 			}
 			if ss.IsFileExist(host, tt.args.remotePath) {
-				logger.Error("remote filepath is exit")
+				logrus.Error("remote filepath is exit")
 				return
 			}
 			// test copy dir

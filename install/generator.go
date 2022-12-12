@@ -20,7 +20,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/ysicing-cloud/sealos/pkg/logger"
+	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
 )
 
@@ -43,8 +43,8 @@ func setKubeadmAPI(version string) {
 		KubeadmAPI = KubeadmV1beta3
 		CriSocket = DefaultContainerdCRISocket
 	}
-	logger.Debug("KubeadmApi: %s", KubeadmAPI)
-	logger.Debug("CriSocket: %s", CriSocket)
+	logrus.Debugf("KubeadmApi: %s", KubeadmAPI)
+	logrus.Debugf("CriSocket: %s", CriSocket)
 }
 
 func Config() {
@@ -93,7 +93,7 @@ func JoinTemplateFromTemplateContent(templateContent, ip, cgroup string) []byte 
 	tmpl, err := template.New("text").Parse(templateContent)
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Error("join template parse failed:", err)
+			logrus.Errorf("join template parse failed: %v", err)
 		}
 	}()
 	if err != nil {
@@ -118,7 +118,7 @@ func TemplateFromTemplateContent(templateContent string) []byte {
 	tmpl, err := template.New("text").Parse(templateContent)
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Error("template parse failed:", err)
+			logrus.Errorf("template parse failed: %v", err)
 		}
 	}()
 	if err != nil {

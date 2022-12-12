@@ -18,7 +18,7 @@ import (
 	"os"
 
 	"github.com/ergoapi/util/zos"
-	"github.com/ysicing-cloud/sealos/pkg/logger"
+	"github.com/ysicing-cloud/sealos/internal/pkg/util/factory"
 
 	"github.com/spf13/cobra"
 
@@ -41,32 +41,31 @@ var (
 `
 )
 
-// installCmd represents the install command
-var installCmd = &cobra.Command{
-	Use:   "install",
-	Short: "install kubernetes apps, like dashboard prometheus ..",
-	Long: `sealos install --pkg-url /root/dashboard.tar  --workdir /data \
+func InstallCmd(f factory.Factory) *cobra.Command {
+	slog := f.GetLog()
+	installCmd := &cobra.Command{
+		Use:   "install",
+		Short: "install kubernetes apps, like dashboard prometheus ..",
+		Long: `sealos install --pkg-url /root/dashboard.tar  --workdir /data \
 -f /root/values.yaml -c /root/config`,
-	Example: installExample,
-	Run: func(cmd *cobra.Command, args []string) {
-		cfg := appmanager.GetInstallFlags(AppURL)
-		_ = appmanager.InstallApp(cfg, cfgFile)
-	},
-	PreRun: func(cmd *cobra.Command, args []string) {
-		logger.Fatal("the install app feature not support")
-		if install.ExitInstallCase(AppURL) {
-			_ = cmd.Help()
-			os.Exit(install.ErrorExitOSCase)
-		}
+		Example: installExample,
+		Run: func(cmd *cobra.Command, args []string) {
+			cfg := appmanager.GetInstallFlags(AppURL)
+			_ = appmanager.InstallApp(cfg, cfgFile)
+		},
+		PreRun: func(cmd *cobra.Command, args []string) {
+			slog.Fatal("the install app feature not support")
+			if install.ExitInstallCase(AppURL) {
+				_ = cmd.Help()
+				os.Exit(install.ErrorExitOSCase)
+			}
 
-	},
-}
-
-func init() {
-	rootCmd.AddCommand(installCmd)
+		},
+	}
 
 	installCmd.Flags().StringVar(&AppURL, "pkg-url", "", "http://store.lameleg.com/prometheus.tar.gz download offline plugins package url, or file localtion ex. /root/prometheus.tar.gz")
 	installCmd.Flags().StringVarP(&install.WorkDir, "workdir", "w", zos.GetHomeDir(), "workdir for install package home ex.  sealos install --pkg-url dashboard.tar --workdir /data")
 	installCmd.Flags().StringVarP(&install.PackageConfig, "pkg-config", "c", "", `packageConfig for install package config  ex. sealos install --pkg-url dashboard.tar -c config`)
 	installCmd.Flags().StringVarP(&install.Values, "values", "f", "", "values for  install package values.yaml , you know what you did .ex. sealos install --pkg-url dashboard.tar -f values.yaml")
+	return installCmd
 }

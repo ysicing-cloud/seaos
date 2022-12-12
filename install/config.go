@@ -16,13 +16,12 @@ package install
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"sigs.k8s.io/yaml"
 
+	"github.com/ergoapi/log"
 	"github.com/ysicing-cloud/sealos/net"
-	"github.com/ysicing-cloud/sealos/pkg/logger"
 )
 
 const (
@@ -56,7 +55,8 @@ type SealConfig struct {
 	//lvscare images
 	LvscareName string
 	LvscareTag  string
-	AliOss
+
+	Log log.Logger
 }
 
 // Dump is
@@ -87,41 +87,36 @@ func (c *SealConfig) Dump(path string) {
 	//lvscare
 	c.LvscareName = LvscareImage.Image
 	c.LvscareTag = LvscareImage.Tag
-	// oss
-	c.AliOss.AccessKeyID = AccessKeyID
-	c.AliOss.AccessKeySecrets = AccessKeySecrets
-	c.AliOss.OssEndpoint = OssEndpoint
-	c.AliOss.BucketName = BucketName
-	c.AliOss.ObjectPath = ObjectPath
 	y, err := yaml.Marshal(c)
 	if err != nil {
-		logger.Error("dump config file failed: %s", err)
+		c.Log.Errorf("dump config file failed: %s", err)
 	}
 
 	err = os.MkdirAll(home+defaultConfigPath, os.ModePerm)
 	if err != nil {
-		logger.Warn("create default sealos config dir failed, please create it by your self mkdir -p /root/.sealos && touch /root/.sealos/config.yaml")
+		c.Log.Warnf("create default sealos config dir failed, please create it by your self mkdir -p /root/.sealos && touch /root/.sealos/config.yaml")
 	}
 
-	if err = ioutil.WriteFile(path, y, 0644); err != nil {
-		logger.Warn("write to file %s failed: %s", path, err)
+	if err = os.WriteFile(path, y, 0600); err != nil {
+		c.Log.Warnf("write to file %s failed: %s", path, err)
 	}
 }
 
 func Dump(path string, content interface{}) error {
+	slog := log.GetInstance()
 	y, err := yaml.Marshal(content)
 	if err != nil {
-		logger.Error("dump config file failed: %s", err)
+		slog.Errorf("dump config file failed: %s", err)
 		return err
 	}
 	home, _ := os.UserHomeDir()
 	err = os.MkdirAll(home+defaultConfigPath, os.ModePerm)
 	if err != nil {
-		logger.Error("create dump dir failed %s", err)
+		slog.Errorf("create dump dir failed %s", err)
 		return err
 	}
 
-	_ = ioutil.WriteFile(path, y, 0644)
+	_ = os.WriteFile(path, y, 0600)
 	return nil
 }
 
@@ -132,7 +127,7 @@ func (c *SealConfig) Load(path string) (err error) {
 		path = home + defaultConfigPath + defaultConfigFile
 	}
 
-	y, err := ioutil.ReadFile(path)
+	y, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("read config file %s failed %w", path, err)
 	}
@@ -161,29 +156,20 @@ func (c *SealConfig) Load(path string) (err error) {
 	//lvscare
 	LvscareImage.Image = c.LvscareName
 	LvscareImage.Tag = c.LvscareTag
-
-	// 优先使用使用命令行， 再使用配置文件
-	if AccessKeyID == "" || AccessKeySecrets == "" ||
-		OssEndpoint == "" || BucketName == "" || ObjectPath == "" {
-		AccessKeyID = c.AliOss.AccessKeyID
-		AccessKeySecrets = c.AliOss.AccessKeySecrets
-		OssEndpoint = c.AliOss.OssEndpoint
-		BucketName = c.AliOss.BucketName
-		ObjectPath = c.AliOss.ObjectPath
-	}
 	return
 }
 
 func Load(path string, content interface{}) error {
-	y, err := ioutil.ReadFile(path)
+	slog := log.GetInstance()
+	y, err := os.ReadFile(path)
 	if err != nil {
-		logger.Error("read config file %s failed %s", path, err)
+		slog.Errorf("read config file %s failed %s", path, err)
 		os.Exit(0)
 	}
 
 	err = yaml.Unmarshal(y, content)
 	if err != nil {
-		logger.Error("unmarshal config file failed: %s", err)
+		slog.Errorf("unmarshal config file failed: %s", err)
 	}
 	return nil
 }
@@ -209,9 +195,9 @@ func (c *SealConfig) ShowDefaultConfig() {
 
 	y, err := yaml.Marshal(c)
 	if err != nil {
-		logger.Error("marshal config file failed: %s", err)
+		c.Log.Errorf("marshal config file failed: %s", err)
 	}
 
-	logger.Info("\n\n%s\n\n", string(y))
-	logger.Info("Please save above config in ~/.sealos/config.yaml and edit values on your own")
+	c.Log.Infof("\n\n%s\n\n", string(y))
+	c.Log.Infof("Please save above config in ~/.sealos/config.yaml and edit values on your own")
 }

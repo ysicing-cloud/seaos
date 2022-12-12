@@ -20,7 +20,6 @@ import (
 	"sync"
 
 	"github.com/ysicing-cloud/sealos/ipvs"
-	"github.com/ysicing-cloud/sealos/pkg/logger"
 )
 
 // BuildJoin is
@@ -76,7 +75,7 @@ func joinNodesFunc(joinNodes []string) {
 func (s *SealosInstaller) GeneratorCerts() {
 	cmd := `kubeadm init phase upload-certs --upload-certs` + vlogToStr()
 	output := SSHConfig.CmdToString(s.Masters[0], cmd, "\r\n")
-	logger.Debug("[globals]decodeCertCmd: %s", output)
+	s.Log.Debugf("[globals]decodeCertCmd: %s", output)
 	slice := strings.Split(output, "Using certificate key:\r\n")
 	slice1 := strings.Split(slice[1], "\r\n")
 	CertificateKey = slice1[0]

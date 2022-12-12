@@ -18,9 +18,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ergoapi/log"
+	"github.com/sirupsen/logrus"
 	"github.com/ysicing-cloud/sealos/net"
-
-	"github.com/ysicing-cloud/sealos/pkg/logger"
 )
 
 type CleanCluster interface {
@@ -61,6 +61,7 @@ type SealosInstaller struct {
 	Nodes     []string
 	Network   string
 	APIServer string
+	Log       log.Logger
 }
 
 type CommandType string
@@ -102,7 +103,7 @@ func (s *SealosInstaller) Command(version string, name CommandType) (cmd string)
 	v, ok := commands[name]
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Error("[globals]fetch command error")
+			s.Log.Error("[globals]fetch command error")
 		}
 	}()
 	if !ok {
@@ -114,16 +115,16 @@ func (s *SealosInstaller) Command(version string, name CommandType) (cmd string)
 // decode output to join token  hash and key
 func decodeOutput(output []byte) {
 	s0 := string(output)
-	logger.Debug("[globals]decodeOutput: %s", s0)
+	logrus.Debugf("[globals]decodeOutput: %s", s0)
 	slice := strings.Split(s0, "kubeadm join")
 	slice1 := strings.Split(slice[1], "Please note")
-	logger.Info("[globals]join command is: %s", slice1[0])
+	logrus.Infof("[globals]join command is: %s", slice1[0])
 	decodeJoinCmd(slice1[0])
 }
 
 // 192.168.0.200:6443 --token 9vr73a.a8uxyaju799qwdjv --discovery-token-ca-cert-hash sha256:7c2e69131a36ae2a042a339b33381c6d0d43887e2de83720eff5359e26aec866 --experimental-control-plane --certificate-key f8902e114ef118304e561c3ecd4d0b543adc226b7a07f675f56564185ffe0c07
 func decodeJoinCmd(cmd string) {
-	logger.Debug("[globals]decodeJoinCmd: %s", cmd)
+	logrus.Debugf("[globals]decodeJoinCmd: %s", cmd)
 	stringSlice := strings.Split(cmd, " ")
 
 	for i, r := range stringSlice {
@@ -131,7 +132,7 @@ func decodeJoinCmd(cmd string) {
 		r = strings.ReplaceAll(r, "\n", "")
 		r = strings.ReplaceAll(r, "\\", "")
 		r = strings.TrimSpace(r)
-		logger.Debug("[####]%d :%s:", i, r)
+		logrus.Debugf("[####]%d :%s:", i, r)
 		// switch r {
 		// case "--token":
 		// 	JoinToken = stringSlice[i+1]
@@ -152,7 +153,7 @@ func decodeJoinCmd(cmd string) {
 			CertificateKey = stringSlice[i+1][:64]
 		}
 	}
-	logger.Debug("[####]JoinToken :%s", JoinToken)
-	logger.Debug("[####]TokenCaCertHash :%s", TokenCaCertHash)
-	logger.Debug("[####]CertificateKey :%s", CertificateKey)
+	logrus.Debugf("[####]JoinToken :%s", JoinToken)
+	logrus.Debugf("[####]TokenCaCertHash :%s", TokenCaCertHash)
+	logrus.Debugf("[####]CertificateKey :%s", CertificateKey)
 }

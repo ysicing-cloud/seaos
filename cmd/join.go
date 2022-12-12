@@ -17,41 +17,42 @@ package cmd
 import (
 	"os"
 
+	"github.com/ergoapi/log"
 	"github.com/spf13/cobra"
 
 	"github.com/ysicing-cloud/sealos/install"
-	"github.com/ysicing-cloud/sealos/pkg/logger"
+	"github.com/ysicing-cloud/sealos/internal/pkg/util/factory"
 )
 
-// joinCmd represents the join command
-var joinCmd = &cobra.Command{
-	Use:   "join",
-	Short: "Simplest way to join your kubernets HA cluster",
-	Long:  `sealos join --node 192.168.0.5`,
-	PreRun: func(cmd *cobra.Command, args []string) {
-		if len(install.MasterIPs) == 0 && len(install.NodeIPs) == 0 {
-			logger.Error("this command is join feature,master and node is empty at the same time.please check your args in command.")
-			_ = cmd.Help()
-			os.Exit(0)
-		}
-	},
-	Run: JoinCmdFunc,
-}
-
-func init() {
-	rootCmd.AddCommand(joinCmd)
+func JoinCmd(f factory.Factory) *cobra.Command {
+	slog := f.GetLog()
+	joinCmd := &cobra.Command{
+		Use:   "join",
+		Short: "Simplest way to join your kubernets HA cluster",
+		Long:  `sealos join --node 192.168.0.5`,
+		PreRun: func(cmd *cobra.Command, args []string) {
+			if len(install.MasterIPs) == 0 && len(install.NodeIPs) == 0 {
+				slog.Error("this command is join feature,master and node is empty at the same time.please check your args in command.")
+				_ = cmd.Help()
+				os.Exit(0)
+			}
+		},
+		Run: JoinCmdFunc,
+	}
 	joinCmd.Flags().StringSliceVar(&install.MasterIPs, "master", []string{}, "kubernetes multi-master ex. 192.168.0.5-192.168.0.5")
 	joinCmd.Flags().StringSliceVar(&install.NodeIPs, "node", []string{}, "kubernetes multi-nodes ex. 192.168.0.5-192.168.0.5")
 	joinCmd.Flags().IntVar(&install.Vlog, "vlog", 0, "kubeadm log level")
+	return joinCmd
 }
 
 func JoinCmdFunc(cmd *cobra.Command, args []string) {
+	slog := log.GetInstance()
 	beforeNodes := install.ParseIPs(install.NodeIPs)
 	beforeMasters := install.ParseIPs(install.MasterIPs)
 
 	c := &install.SealConfig{}
 	if err := c.Load(cfgFile); err != nil {
-		logger.Error(err)
+		slog.Error(err)
 		c.ShowDefaultConfig()
 		os.Exit(0)
 	}
@@ -60,7 +61,7 @@ func JoinCmdFunc(cmd *cobra.Command, args []string) {
 	joinNodes := append(beforeNodes, beforeMasters...)
 
 	if ok, node := deleteOrJoinNodeIsExistInCfgNodes(joinNodes, cfgNodes); ok {
-		logger.Error(`[%s] has already exist in your cluster. please check.`, node)
+		slog.Errorf(`[%s] has already exist in your cluster. please check.`, node)
 		os.Exit(-1)
 	}
 

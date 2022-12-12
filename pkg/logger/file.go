@@ -51,15 +51,16 @@ type fileLogger struct {
 
 // Init file logger with json config.
 // jsonConfig like:
-//	{
-//	"filename":"log/app.log",
-//	"maxlines":10000,
-//	"maxsize":1024,
-//	"daily":true,
-//	"maxdays":15,
-//	"rotate":true,
-//  	"permit":"0600"
-//	}
+//
+//		{
+//		"filename":"log/app.log",
+//		"maxlines":10000,
+//		"maxsize":1024,
+//		"daily":true,
+//		"maxdays":15,
+//		"rotate":true,
+//	 	"permit":"0600"
+//		}
 func (f *fileLogger) Init(jsonConfig string) error {
 	// fmt.Printf("fileLogger Init:%s\n", jsonConfig)
 	if len(jsonConfig) == 0 {

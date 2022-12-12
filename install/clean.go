@@ -21,7 +21,6 @@ import (
 	"sync"
 
 	"github.com/ysicing-cloud/sealos/ipvs"
-	"github.com/ysicing-cloud/sealos/pkg/logger"
 	sshcmd "github.com/ysicing-cloud/sealos/pkg/sshcmd/cmd"
 )
 
@@ -41,7 +40,7 @@ func BuildClean(deleteNodes, deleteMasters []string) {
 			prompt := fmt.Sprintf("clean command will clean masters [%s], continue clean (y/n)?", strings.Join(deleteMasters, ","))
 			result := Confirm(prompt)
 			if !result {
-				logger.Debug("clean masters command is skip")
+				i.Log.Debug("clean masters command is skip")
 				goto node
 			}
 		}
@@ -56,7 +55,7 @@ node:
 			prompt := fmt.Sprintf("clean command will clean nodes [%s], continue clean (y/n)?", strings.Join(deleteNodes, ","))
 			result := Confirm(prompt)
 			if !result {
-				logger.Debug("clean nodes command is skip")
+				i.Log.Debug("clean nodes command is skip")
 				goto all
 			}
 		}
@@ -69,7 +68,7 @@ all:
 		if !CleanForce { // flase
 			result := Confirm(`clean command will clean all masters and nodes, continue clean (y/n)?`)
 			if !result {
-				logger.Debug("clean all node command is skip")
+				i.Log.Debug("clean all node command is skip")
 				goto end
 			}
 		}
@@ -81,13 +80,13 @@ all:
 	}
 end:
 	if len(i.Masters) == 0 && len(i.Nodes) == 0 {
-		logger.Warn("clean nodes and masters is empty,please check your args and config.yaml.")
+		i.Log.Warn("clean nodes and masters is empty,please check your args and config.yaml.")
 		os.Exit(-1)
 	}
 	i.CheckValid()
 	i.Clean()
 	if i.cleanAll {
-		logger.Info("if clean all and clean sealos config")
+		i.Log.Info("if clean all and clean sealos config")
 		home, _ := os.UserHomeDir()
 		cfgPath := home + defaultConfigPath
 		sshcmd.Cmd("/bin/sh", "-c", "rm -rf "+cfgPath)
@@ -132,7 +131,7 @@ func (s *SealosClean) cleanNode(node string) {
 	//remove node
 	NodeIPs = SliceRemoveStr(NodeIPs, node)
 	if !s.cleanAll {
-		logger.Debug("clean node in master")
+		s.Log.Debug("clean node in master")
 		if len(MasterIPs) > 0 {
 			hostname := isHostName(MasterIPs[0], node)
 			cmd := "kubectl delete node %s"
@@ -146,7 +145,7 @@ func (s *SealosClean) cleanMaster(master string) {
 	//remove master
 	MasterIPs = SliceRemoveStr(MasterIPs, master)
 	if !s.cleanAll {
-		logger.Debug("clean node in master")
+		s.Log.Debug("clean node in master")
 		if len(MasterIPs) > 0 {
 			hostname := isHostName(MasterIPs[0], master)
 			cmd := "kubectl delete node %s"

@@ -19,8 +19,6 @@ import (
 	"os"
 
 	"github.com/ysicing-cloud/sealos/net"
-
-	"github.com/ysicing-cloud/sealos/pkg/logger"
 )
 
 // SetHosts set hosts. if can't access to hostName, set /etc/hosts
@@ -39,13 +37,11 @@ func (s *SealosInstaller) CheckValid() {
 	//hosts := append(masters, nodes...)
 	var hosts = append(s.Masters, s.Nodes...)
 	if len(s.Hosts) == 0 && len(hosts) == 0 {
-		s.Print("Fail")
-		logger.Error("hosts not allow empty")
+		s.Log.Error("hosts not allow empty")
 		os.Exit(1)
 	}
 	if SSHConfig.User == "" {
-		s.Print("Fail")
-		logger.Error("user not allow empty")
+		s.Log.Error("user not allow empty")
 		os.Exit(1)
 	}
 	dict := make(map[string]bool)
@@ -53,25 +49,25 @@ func (s *SealosInstaller) CheckValid() {
 	for _, h := range s.Hosts {
 		hostname := SSHConfig.CmdToString(h, "hostname", "") //获取主机名
 		if hostname == "" {
-			logger.Error("[%s] ------------ check error", h)
+			s.Log.Errorf("[%s] ------------ check error", h)
 			os.Exit(1)
 		} else {
 			SetHosts(h, hostname)
 			if _, ok := dict[hostname]; !ok {
 				dict[hostname] = true //不冲突, 主机名加入字典
 			} else {
-				logger.Error("duplicate hostnames is not allowed")
+				s.Log.Error("duplicate hostnames is not allowed")
 				os.Exit(1)
 			}
-			logger.Info("[%s]  ------------ check ok", h)
+			s.Log.Infof("[%s]  ------------ check ok", h)
 		}
 		if s.Network == net.CILIUM {
 			if err := SSHConfig.CmdAsync(h, "uname -r | grep 5 | awk -F. '{if($2>3)print \"ok\"}' | grep ok && exit 0 || exit 1"); err != nil {
-				logger.Error("[%s] ------------ check kernel version  < 5.3", h)
+				s.Log.Errorf("[%s] ------------ check kernel version  < 5.3", h)
 				os.Exit(1)
 			}
 			if err := SSHConfig.CmdAsync(h, "mount bpffs -t bpf /sys/fs/bpf && mount | grep /sys/fs/bpf && exit 0 || exit 1"); err != nil {
-				logger.Error("[%s] ------------ mount  bpffs err", h)
+				s.Log.Errorf("[%s] ------------ mount  bpffs err", h)
 				os.Exit(1)
 			}
 		}
@@ -88,7 +84,7 @@ func (s *SealosInstaller) CheckValid() {
 	}
 
 	if len(errList) >= 1 {
-		logger.Error(`docker exist error when kubernetes version >= 1.20.
+		s.Log.Error(`docker exist error when kubernetes version >= 1.20.
 sealos install kubernetes version >= 1.20 use containerd cri instead. 
 please uninstall docker on [%s]. For example run on centos7: "yum remove docker-ce containerd-io -y",  
 see details:  https://github.com/ysicing-cloud/sealos/issues/582

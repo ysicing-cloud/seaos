@@ -20,7 +20,7 @@ import (
 	"path"
 	"sync"
 
-	"github.com/ysicing-cloud/sealos/pkg/logger"
+	"github.com/ergoapi/log"
 	"github.com/ysicing-cloud/sealos/pkg/sshcmd/cmd"
 	"github.com/ysicing-cloud/sealos/pkg/sshcmd/md5sum"
 )
@@ -31,6 +31,7 @@ import (
 // hook: cd /root && rm -rf kube && tar zxvf %s  && cd /root/kube/shell && sh init.sh
 func SendPackage(location string, hosts []string, dst string, before, after *string) string {
 	var md5 string
+	slog := log.GetInstance()
 	location, md5 = downloadFile(location)
 	pkg := path.Base(location)
 	fullPath := fmt.Sprintf("%s/%s", dst, pkg)
@@ -41,33 +42,33 @@ func SendPackage(location string, hosts []string, dst string, before, after *str
 		go func(host string) {
 			defer wm.Done()
 			_ = SSHConfig.CmdAsync(host, mkDstDir)
-			logger.Debug("[%s]please wait for mkDstDir", host)
+			slog.Debugf("[%s]please wait for mkDstDir", host)
 			if before != nil {
-				logger.Debug("[%s]please wait for before hook", host)
+				slog.Debugf("[%s]please wait for before hook", host)
 				_ = SSHConfig.CmdAsync(host, *before)
 			}
 			if SSHConfig.IsFileExist(host, fullPath) {
 				if SSHConfig.ValidateMd5sumLocalWithRemote(host, location, fullPath) {
-					logger.Info("[%s]SendPackage:  %s file is exist and ValidateMd5 success", host, fullPath)
+					slog.Infof("[%s]SendPackage:  %s file is exist and ValidateMd5 success", host, fullPath)
 				} else {
 					rm := fmt.Sprintf("rm -f %s", fullPath)
 					_ = SSHConfig.Cmd(host, rm)
 					// del then copy
 					if ok := SSHConfig.CopyForMD5(host, location, fullPath, md5); ok {
-						logger.Info("[%s]copy file md5 validate success", host)
+						slog.Infof("[%s]copy file md5 validate success", host)
 					} else {
-						logger.Error("[%s]copy file md5 validate failed", host)
+						slog.Errorf("[%s]copy file md5 validate failed", host)
 					}
 				}
 			} else {
 				if ok := SSHConfig.CopyForMD5(host, location, fullPath, md5); ok {
-					logger.Info("[%s]copy file md5 validate success", host)
+					slog.Infof("[%s]copy file md5 validate success", host)
 				} else {
-					logger.Error("[%s]copy file md5 validate failed", host)
+					slog.Errorf("[%s]copy file md5 validate failed", host)
 				}
 			}
 			if after != nil {
-				logger.Debug("[%s]please wait for after hook", host)
+				slog.Debugf("[%s]please wait for after hook", host)
 				_ = SSHConfig.CmdAsync(host, *after)
 			}
 		}(host)

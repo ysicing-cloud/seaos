@@ -18,12 +18,11 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
-
-	"github.com/ysicing-cloud/sealos/pkg/logger"
 )
 
 type LvscareImage struct {
@@ -59,7 +58,7 @@ func LvsStaticPodYaml(vip string, masters []string, image LvscareImage) string {
 	})
 	yaml, err := podToYaml(pod)
 	if err != nil {
-		logger.Error("decode lvscare static pod yaml failed %s", err)
+		logrus.Errorf("decode lvscare static pod yaml failed %s", err)
 		return ""
 	}
 	return string(yaml)

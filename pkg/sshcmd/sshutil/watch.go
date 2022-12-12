@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ysicing-cloud/sealos/pkg/logger"
+	"github.com/sirupsen/logrus"
 )
 
 const oneKBByte = 1024
@@ -42,7 +42,7 @@ func (ss *SSH) LoggerFileSize(host, filename string, size int) {
 			}
 			lengthFloat := float64(lengthByte)
 			value, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", lengthFloat/oneMBByte), 64)
-			logger.Info("[ssh][%s]transfer total size is: %.2f%s", host, value, "MB")
+			logrus.Infof("[ssh][%s]transfer total size is: %.2f%s", host, value, "MB")
 		}
 	}
 }
@@ -61,7 +61,7 @@ func (ss *SSH) IsFileExist(host, remoteFilePath string) bool {
 	count, err := strconv.Atoi(strings.TrimSpace(data))
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Error("[ssh][%s]RemoteFileExist:%s", host, err)
+			logrus.Errorf("[ssh][%s]RemoteFileExist:%s", host, err)
 		}
 	}()
 	if err != nil {

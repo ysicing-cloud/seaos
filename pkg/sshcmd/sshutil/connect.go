@@ -16,12 +16,11 @@ package sshutil
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/ysicing-cloud/sealos/pkg/logger"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -122,9 +121,9 @@ func (ss *SSH) sshPasswordMethod(passwd string) ssh.AuthMethod {
 // readFile 从文件读取privateKey， 并返回[]byte 无需返回string。
 // 直接返回[]byte， 避免重复 []byte -> string -> []byte
 func (ss *SSH) readFile(name string) []byte {
-	content, err := ioutil.ReadFile(name)
+	content, err := os.ReadFile(name)
 	if err != nil {
-		logger.Error("[globals] read %s file err is : %s", name, err)
+		logrus.Errorf("[globals] read %s file err is : %s", name, err)
 		os.Exit(1)
 	}
 	return content

@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
@@ -31,15 +30,16 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/ysicing-cloud/sealos/pkg/logger"
+	"github.com/ergoapi/log"
+	"github.com/sirupsen/logrus"
 )
 
 var message string
 
 // ExitOSCase is
 func ExitInitCase() bool {
+	slog := log.GetInstance()
 	// 重大错误直接退出, 不保存配置文件
 	if len(MasterIPs) == 0 {
 		message = ErrorMasterEmpty
@@ -54,7 +54,7 @@ func ExitInitCase() bool {
 	//	message += ErrorMessageSSHConfigEmpty
 	//}
 	if message != "" {
-		logger.Error(message + "please check your command is ok?")
+		slog.Errorf("message: %v, please check your command is ok?", message)
 		return true
 	}
 
@@ -63,7 +63,7 @@ func ExitInitCase() bool {
 
 func ExitDeleteCase(pkgURL string) bool {
 	if PackageConfig != "" && !FileExist(PackageConfig) {
-		logger.Error("your APP pkg-config File is not exist, Please check your pkg-config is exist")
+		logrus.Error("your APP pkg-config File is not exist, Please check your pkg-config is exist")
 		return true
 	}
 	return pkgURLCheck(pkgURL)
@@ -72,12 +72,12 @@ func ExitDeleteCase(pkgURL string) bool {
 func ExitInstallCase(pkgURL string) bool {
 	// values.yaml 使用了-f 但是文件不存在. 并且不使用 stdin
 	if Values != "-" && !FileExist(Values) && Values != "" {
-		logger.Error("your values File is not exist and you have no stdin input, Please check your Values.yaml is exist")
+		logrus.Error("your values File is not exist and you have no stdin input, Please check your Values.yaml is exist")
 		return true
 	}
 	// PackageConfig 使用了-c 但是文件不存在
 	if PackageConfig != "" && !FileExist(PackageConfig) {
-		logger.Error("your install APP pkg-config File is not exist, Please check your pkg-config is exist")
+		logrus.Error("your install APP pkg-config File is not exist, Please check your pkg-config is exist")
 		return true
 	}
 	return pkgURLCheck(pkgURL)
@@ -86,7 +86,7 @@ func ExitInstallCase(pkgURL string) bool {
 func pkgURLCheck(pkgURL string) bool {
 	if !strings.HasPrefix(pkgURL, "http") && !FileExist(pkgURL) {
 		message = ErrorFileNotExist
-		logger.Error(message + "please check where your PkgUrl is right?")
+		logrus.Error(message + "please check where your PkgUrl is right?")
 		return true
 	}
 	// 判断PkgUrl, 有http前缀时, 下载的文件如果小于400M ,则报错.
@@ -101,7 +101,7 @@ func downloadFileCheck(pkgURL string) bool {
 	if u != nil {
 		req, err := http.NewRequest("GET", u.String(), nil)
 		if err != nil {
-			logger.Error(ErrorPkgURLNotExist, "please check where your PkgUrl is right?")
+			logrus.Error(ErrorPkgURLNotExist, "please check where your PkgUrl is right?")
 			return false
 		}
 		client := &http.Client{
@@ -111,20 +111,9 @@ func downloadFileCheck(pkgURL string) bool {
 		}
 		_, err = client.Do(req)
 		if err != nil {
-			logger.Error(err)
+			logrus.Error(err)
 			return false
 		}
-		/*
-			if tp := resp.Header.Get("Content-Type"); tp != "application/x-gzip" {
-				logger.Error("your pkg url is  a ", tp, "file, please check your PkgUrl is right?")
-				return false
-			}
-		*/
-
-		//if resp.ContentLength < MinDownloadFileSize { //判断大小 这里可以设置成比如 400MB 随便设置一个大小
-		//	logger.Error("your pkgUrl download file size is : ", resp.ContentLength/1024/1024, "m, please check your PkgUrl is right")
-		//	return false
-		//}
 	}
 	return true
 }
@@ -165,21 +154,10 @@ func VersionToIntAll(version string) int {
 func IPFormat(host string) string {
 	ipAndPort := strings.Split(host, ":")
 	if len(ipAndPort) != 2 {
-		logger.Error("invalied host fomat [%s], must like 172.0.0.2:22", host)
+		logrus.Errorf("invalied host fomat [%s], must like 172.0.0.2:22", host)
 		os.Exit(1)
 	}
 	return ipAndPort[0]
-}
-
-// RandString 生成随机字符串
-func RandString(len int) string {
-	var r = rand.New(rand.NewSource(time.Now().Unix()))
-	bytes := make([]byte, len)
-	for i := 0; i < len; i++ {
-		b := r.Intn(26) + 65
-		bytes[i] = byte(b)
-	}
-	return string(bytes)
 }
 
 // Cmp compares two IPs, returning the usual ordering:
@@ -191,7 +169,7 @@ func Cmp(a, b net.IP) int {
 	bb := ipToInt(b)
 
 	if aa == nil || bb == nil {
-		logger.Error("ip range %s-%s is invalid", a.String(), b.String())
+		logrus.Errorf("ip range %s-%s is invalid", a.String(), b.String())
 		os.Exit(-1)
 	}
 	return aa.Cmp(bb)
@@ -239,7 +217,7 @@ func DecodeIPs(ips []string) []string {
 			}
 		} else {
 			if stringToIP(ip) == nil {
-				logger.Error("ip [%s] is invalid", ip)
+				logrus.Errorf("ip [%s] is invalid", ip)
 				os.Exit(1)
 			}
 			res = append(res, fmt.Sprintf("%s:%s", ip, port))
@@ -261,13 +239,13 @@ func Confirm(prompt string) bool {
 	)
 	_, err = fmt.Fprint(os.Stdout, prompt)
 	if err != nil {
-		logger.Error("fmt.Fprint err", err)
+		logrus.Errorf("fmt.Fprint err: %v", err)
 		os.Exit(-1)
 	}
 
 	_, err = fmt.Scanf("%s", &inputStr)
 	if err != nil {
-		logger.Error("fmt.Scanf err", err)
+		logrus.Errorf("fmt.Scanf err: %v", err)
 		os.Exit(-1)
 	}
 
@@ -287,7 +265,7 @@ func SliceRemoveStr(ss []string, s string) (result []string) {
 func isHostName(master, host string) string {
 	hostString := SSHConfig.CmdToString(master, "kubectl get nodes | grep -v NAME  | awk '{print $1}'", ",")
 	hostName := SSHConfig.CmdToString(host, "hostname", "")
-	logger.Debug("hosts %v", hostString)
+	logrus.Debugf("hosts %s", hostString)
 	hosts := strings.Split(hostString, ",")
 	var name string
 	for _, h := range hosts {
@@ -506,7 +484,7 @@ func For120(version string) bool {
 	newMajor, _ := GetMajorMinorInt(version)
 	// // kubernetes gt 1.20, use Containerd instead of docker
 	if newMajor >= 120 {
-		logger.Info("install version is: %s, Use kubeadm v1beta2 InitConfig,OCI use containerd instead", version)
+		logrus.Infof("install version is: %s, Use kubeadm v1beta2 InitConfig,OCI use containerd instead", version)
 		return true
 	}
 	return false

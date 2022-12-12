@@ -17,10 +17,9 @@ package appmanager
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 
+	"github.com/sirupsen/logrus"
 	"github.com/ysicing-cloud/sealos/install"
-	"github.com/ysicing-cloud/sealos/pkg/logger"
 
 	"os"
 )
@@ -45,14 +44,14 @@ func GetInstallFlags(appURL string) *InstallFlags {
 func InstallApp(flag *InstallFlags, cfgFile string) error {
 	c := &install.SealConfig{}
 	if err := c.Load(cfgFile); err != nil {
-		logger.Error("%s", err)
+		logrus.Errorf("%s", err)
 		c.ShowDefaultConfig()
 		os.Exit(0)
 	}
 
 	pkgConfig, err := LoadAppConfig(flag.PkgURL, flag.Config)
 	if err != nil {
-		logger.Error("Load App config from tarball err: ", err)
+		logrus.Error("Load App config from tarball err: ", err)
 		os.Exit(0)
 	}
 	pkgConfig.URL = flag.PkgURL
@@ -61,7 +60,7 @@ func InstallApp(flag *InstallFlags, cfgFile string) error {
 	pkgConfig.Workspace = fmt.Sprintf("%s/%s", flag.WorkDir, pkgConfig.Name)
 	s, err := getValuesContent(flag.Values)
 	if err != nil {
-		logger.Error("get values err:", err)
+		logrus.Errorf("get values err: %v", err)
 		os.Exit(-1)
 	}
 	pkgConfig.ValuesContent = s
@@ -84,7 +83,6 @@ func NewInstallCommands(cmds []Command) (Runner, Runner) {
 		case "APPLY":
 			masterOnlyCmd.Cmd = append(masterOnlyCmd.Cmd, c)
 		default:
-			// logger.Warn("Unknown command:%s,%s", c.Name, c.Cmd)
 			// don't care other commands
 		}
 	}
@@ -101,7 +99,7 @@ func getValuesContent(s string) (valuesContent []byte, err error) {
 		return nil, nil
 	} else {
 		// use -f file
-		return ioutil.ReadFile(s)
+		return os.ReadFile(s)
 	}
 }
 

@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ysicing-cloud/sealos/pkg/logger"
+	"github.com/sirupsen/logrus"
 )
 
 const oneMBByte = 1024 * 1024
@@ -41,7 +41,7 @@ func LoggerFileSize(filename string, size int) {
 			}
 			lengthFloat := float64(lengthByte)
 			value, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", lengthFloat/oneMBByte), 64)
-			logger.Info("[os][%s]transfer total size is: %.2f%s", filename, value, "MB")
+			logrus.Infof("[os][%s]transfer total size is: %.2f%s", filename, value, "MB")
 		}
 	}
 }
@@ -58,7 +58,7 @@ func IsFileExist(filepath string) bool {
 	count, err := strconv.Atoi(strings.TrimSpace(data))
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Error("[os][%s]RemoteFileExist:%s", filepath, err)
+			logrus.Errorf("[os][%s]RemoteFileExist:%s", filepath, err)
 		}
 	}()
 	if err != nil {

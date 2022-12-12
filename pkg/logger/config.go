@@ -21,7 +21,7 @@ import (
 
 const WINDOWS = "windows"
 
-//二次开发logger
+// 二次开发logger
 func Cfg(level int, logFIle string) {
 	config := logConfig{
 		TimeFormat: "15:04:05",
