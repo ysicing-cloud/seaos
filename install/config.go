@@ -21,7 +21,6 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/ergoapi/log"
-	"github.com/ysicing-cloud/sealos/net"
 )
 
 const (
@@ -45,11 +44,8 @@ type SealConfig struct {
 	PkPassword string
 	//ApiServer ex. apiserver.cluster.local
 	APIServerDomain string
-	Network         string
 	VIP             string
 	PkgURL          string
-	Version         string
-	Repo            string
 	PodCIDR         string
 	SvcCIDR         string
 	//lvscare images
@@ -74,11 +70,8 @@ func (c *SealConfig) Dump(path string) {
 	c.PrivateKey = SSHConfig.PkFile
 	c.PkPassword = SSHConfig.PkPassword
 	c.APIServerDomain = APIServer
-	c.Network = Network
 	c.VIP = VIP
 	c.PkgURL = PkgURL
-	c.Version = Version
-	c.Repo = Repo
 	c.SvcCIDR = SvcCIDR
 	c.PodCIDR = PodCIDR
 
@@ -144,11 +137,8 @@ func (c *SealConfig) Load(path string) (err error) {
 	SSHConfig.PkFile = c.PrivateKey
 	SSHConfig.PkPassword = c.PkPassword
 	APIServer = c.APIServerDomain
-	Network = c.Network
 	VIP = c.VIP
 	PkgURL = c.PkgURL
-	Version = c.Version
-	Repo = c.Repo
 	PodCIDR = c.PodCIDR
 	SvcCIDR = c.SvcCIDR
 	DNSDomain = c.DNSDomain
@@ -182,11 +172,8 @@ func (c *SealConfig) ShowDefaultConfig() {
 	c.Passwd = "123456"
 	c.PrivateKey = home + "/.ssh/id_rsa"
 	c.APIServerDomain = defaultAPIServerDomain
-	c.Network = net.CALICO
 	c.VIP = "10.103.97.2"
 	c.PkgURL = home + "/kube1.17.13.tar.gz"
-	c.Version = "v1.17.13"
-	c.Repo = "k8s.gcr.io"
 	c.PodCIDR = "100.64.0.0/10"
 	c.SvcCIDR = "10.96.0.0/12"
 	c.APIServerCertSANs = []string{"apiserver.cluster.local", "127.0.0.1"}

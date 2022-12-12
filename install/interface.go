@@ -25,7 +25,6 @@ type Send interface {
 
 // PreInit is
 type PreInit interface {
-	KubeadmConfigInstall()
 	InstallMaster0()
 }
 

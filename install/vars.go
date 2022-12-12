@@ -38,8 +38,6 @@ var (
 
 	VIP     string
 	PkgURL  string
-	Version string
-	Repo    string
 	PodCIDR string
 	SvcCIDR string
 
@@ -50,7 +48,6 @@ var (
 
 	Ipvs         care.LvsCare
 	LvscareImage ipvs.LvscareImage
-	KubeadmFile  string
 
 	Network string // network type, calico or flannel etc..
 

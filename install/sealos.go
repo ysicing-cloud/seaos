@@ -20,7 +20,6 @@ import (
 
 	"github.com/ergoapi/log"
 	"github.com/sirupsen/logrus"
-	"github.com/ysicing-cloud/sealos/net"
 )
 
 type CleanCluster interface {
@@ -59,7 +58,6 @@ type SealosInstaller struct {
 	Hosts     []string
 	Masters   []string
 	Nodes     []string
-	Network   string
 	APIServer string
 	Log       log.Logger
 }
@@ -85,19 +83,6 @@ func (s *SealosInstaller) Command(version string, name CommandType) (cmd string)
 		commands[InitMaster] = `kubeadm init --config=/root/kubeadm-config.yaml --upload-certs` + vlogToStr()
 		commands[JoinMaster] = "kubeadm join --config=/root/kubeadm-join-config.yaml " + vlogToStr()
 		commands[JoinNode] = "kubeadm join --config=/root/kubeadm-join-config.yaml " + vlogToStr()
-	}
-
-	// version >= 1.16.x support kubeadm init --skip-phases=addon/kube-proxy
-	// version <= 115
-	// kubectl -n kube-system delete ds kube-proxy
-	// # Run on each node:
-	// iptables-restore <(iptables-save | grep -v KUBE)
-	if s.Network == net.CILIUM {
-		if VersionToInt(version) >= 116 {
-			commands[InitMaster] = `kubeadm init --skip-phases=addon/kube-proxy --config=/root/kubeadm-config.yaml --upload-certs` + vlogToStr()
-		} else {
-			commands[InitMaster] = `kubeadm init --config=/root/kubeadm-config.yaml --upload-certs` + vlogToStr()
-		}
 	}
 
 	v, ok := commands[name]

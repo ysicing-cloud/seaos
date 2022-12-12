@@ -16,17 +16,10 @@ package install
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
-
-	"github.com/ergoapi/util/zos"
-	"github.com/ysicing-cloud/sealos/k8s"
-
-	"github.com/ysicing-cloud/sealos/net"
 )
 
 // BuildInit is
@@ -42,7 +35,6 @@ func BuildInit() {
 		Hosts:     hosts,
 		Masters:   masters,
 		Nodes:     nodes,
-		Network:   Network,
 		APIServer: APIServer,
 	}
 	i.CheckValid()
@@ -50,11 +42,6 @@ func BuildInit() {
 	i.SendSealos()
 	i.SendPackage()
 	i.Print("SendPackage")
-	i.KubeadmConfigInstall()
-	i.Print("SendPackage", "KubeadmConfigInstall")
-	//生成kubeconfig的时候kubeadm的kubeconfig阶段会检查硬盘是否kubeconfig，有则跳过
-	//不用kubeadm init加选项跳过[kubeconfig]的阶段
-	// i.CreateKubeconfig()
 
 	i.InstallMaster0()
 	i.Print("SendPackage", "KubeadmConfigInstall", "InstallMaster0")
@@ -67,52 +54,6 @@ func BuildInit() {
 		i.Print("SendPackage", "KubeadmConfigInstall", "InstallMaster0", "JoinMasters", "JoinNodes")
 	}
 	i.PrintFinish()
-}
-
-func (s *SealosInstaller) getCgroupDriverFromShell(h string) string {
-	var output string
-	if For120(Version) {
-		cmd := ContainerdShell
-		output = SSHConfig.CmdToString(h, cmd, " ")
-	} else {
-		cmd := DockerShell
-		output = SSHConfig.CmdToString(h, cmd, " ")
-	}
-	output = strings.TrimSpace(output)
-	s.Log.Infof("cgroup driver is %s", output)
-	return output
-}
-
-// KubeadmConfigInstall is
-func (s *SealosInstaller) KubeadmConfigInstall() {
-	var templateData string
-	CgroupDriver = s.getCgroupDriverFromShell(s.Masters[0])
-	if KubeadmFile == "" {
-		templateData = string(Template())
-	} else {
-		fileData, err := os.ReadFile(KubeadmFile)
-		defer func() {
-			if r := recover(); r != nil {
-				s.Log.Errorf("[globals]template file read failed: %v", err)
-			}
-		}()
-		if err != nil {
-			panic(1)
-		}
-		templateData = string(TemplateFromTemplateContent(string(fileData)))
-	}
-	cmd := fmt.Sprintf(`echo "%s" > /root/kubeadm-config.yaml`, templateData)
-	//cmd := "echo \"" + templateData + "\" > /root/kubeadm-config.yaml"
-	_ = SSHConfig.CmdAsync(s.Masters[0], cmd)
-	//读取模板数据
-	kubeadm := KubeadmDataFromYaml(templateData)
-	if kubeadm != nil {
-		DNSDomain = kubeadm.Networking.DNSDomain
-		APIServerCertSANs = kubeadm.APIServer.CertSANs
-	} else {
-		s.Log.Warn("decode certSANs from config failed, using default SANs")
-		APIServerCertSANs = getDefaultSANs()
-	}
 }
 
 func getDefaultSANs() []string {
@@ -166,7 +107,7 @@ func (s *SealosInstaller) InstallMaster0() {
 	cmd := fmt.Sprintf("grep -qF '%s %s' /etc/hosts || echo %s %s >> /etc/hosts", IPFormat(s.Masters[0]), APIServer, IPFormat(s.Masters[0]), APIServer)
 	_ = SSHConfig.CmdAsync(s.Masters[0], cmd)
 
-	cmd = s.Command(Version, InitMaster)
+	cmd = s.Command("", InitMaster)
 
 	output := SSHConfig.Cmd(s.Masters[0], cmd)
 	if output == nil {
@@ -177,49 +118,6 @@ func (s *SealosInstaller) InstallMaster0() {
 
 	cmd = `mkdir -p /root/.kube && cp /etc/kubernetes/admin.conf /root/.kube/config && chmod 600 /root/.kube/config`
 	SSHConfig.Cmd(s.Masters[0], cmd)
-
-	if WithoutCNI {
-		s.Log.Info("--without-cni is true, so we not install calico or flannel, install it by yourself")
-		return
-	}
-	//cmd = `kubectl apply -f /root/kube/conf/net/calico.yaml || true`
-	var cniVersion string
-	// can-reach is used by calico multi network , flannel has nothing to add. just Use it.
-	if Network == net.CALICO {
-		if k8s.IsIpv4(Interface) {
-			Interface = "can-reach=" + Interface
-		} else if !k8s.IsIpv4(Interface) { //nolint:gofmt
-			Interface = "interface=" + Interface
-		}
-		if SSHConfig.IsFileExist(s.Masters[0], "/root/kube/Metadata") {
-			var metajson string
-			var tmpdata metadata
-			metajson = SSHConfig.CmdToString(s.Masters[0], "cat /root/kube/Metadata", "")
-			err := json.Unmarshal([]byte(metajson), &tmpdata)
-			if err != nil {
-				s.Log.Warnf("get metadata version err: %v", err)
-			} else {
-				cniVersion = tmpdata.CniVersion
-				Network = tmpdata.CniName
-			}
-		}
-	}
-
-	netyaml := net.NewNetwork(Network, net.MetaData{
-		Interface:      Interface,
-		CIDR:           PodCIDR,
-		IPIP:           !BGP,
-		MTU:            MTU,
-		CniRepo:        Repo,
-		K8sServiceHost: s.APIServer,
-		Version:        cniVersion,
-	}).Manifests("")
-	s.Log.Debugf("cni yaml: %s \n", netyaml)
-	home := zos.GetHomeDir()
-	configYamlDir := filepath.Join(home, ".sealos", "cni.yaml")
-	_ = os.WriteFile(configYamlDir, []byte(netyaml), 0600)
-	SSHConfig.Copy(s.Masters[0], configYamlDir, "/tmp/cni.yaml")
-	SSHConfig.Cmd(s.Masters[0], "kubectl apply -f /tmp/cni.yaml")
 }
 
 // SendKubeConfigs
@@ -228,35 +126,10 @@ func (s *SealosInstaller) SendKubeConfigs(masters []string) {
 	s.sendKubeConfigFile(masters, "admin.conf")
 	s.sendKubeConfigFile(masters, "controller-manager.conf")
 	s.sendKubeConfigFile(masters, "scheduler.conf")
-
-	if s.to11911192(masters) {
-		s.Log.Info("set 1191 1192 config")
-	}
 }
 
 func (s *SealosInstaller) SendJoinMasterKubeConfigs(masters []string) {
 	s.sendKubeConfigFile(masters, "admin.conf")
 	s.sendKubeConfigFile(masters, "controller-manager.conf")
 	s.sendKubeConfigFile(masters, "scheduler.conf")
-	if s.to11911192(masters) {
-		s.Log.Info("set 1191 1192 config")
-	}
-}
-
-func (s *SealosInstaller) to11911192(masters []string) (to11911192 bool) {
-	// fix > 1.19.1 kube-controller-manager and kube-scheduler use the LocalAPIEndpoint instead of the ControlPlaneEndpoint.
-	if VersionToIntAll(Version) >= 1191 && VersionToIntAll(Version) <= 1192 {
-		for _, v := range masters {
-			ip := IPFormat(v)
-			// use grep -qF if already use sed then skip....
-			cmd := fmt.Sprintf(`grep -qF "apiserver.cluster.local" %s  && \
-sed -i 's/apiserver.cluster.local/%s/' %s && \
-sed -i 's/apiserver.cluster.local/%s/' %s`, KUBESCHEDULERCONFIGFILE, ip, KUBECONTROLLERCONFIGFILE, ip, KUBESCHEDULERCONFIGFILE)
-			_ = SSHConfig.CmdAsync(v, cmd)
-		}
-		to11911192 = true
-	} else {
-		to11911192 = false
-	}
-	return
 }

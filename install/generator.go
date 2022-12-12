@@ -21,31 +21,9 @@ import (
 	"text/template"
 
 	"github.com/sirupsen/logrus"
-	"sigs.k8s.io/yaml"
 )
 
 var ConfigType string
-
-func setKubeadmAPI(version string) {
-	major, _ := GetMajorMinorInt(version)
-	switch {
-	//
-	case major < 120:
-		KubeadmAPI = KubeadmV1beta1
-		CriSocket = DefaultDockerCRISocket
-	case major < 123 && major >= 120:
-		KubeadmAPI = KubeadmV1beta2
-		CriSocket = DefaultContainerdCRISocket
-	case major >= 123:
-		KubeadmAPI = KubeadmV1beta3
-		CriSocket = DefaultContainerdCRISocket
-	default:
-		KubeadmAPI = KubeadmV1beta3
-		CriSocket = DefaultContainerdCRISocket
-	}
-	logrus.Debugf("KubeadmApi: %s", KubeadmAPI)
-	logrus.Debugf("CriSocket: %s", CriSocket)
-}
 
 func Config() {
 	switch ConfigType {
@@ -89,7 +67,6 @@ func JoinTemplate(ip string, cgroup string) []byte {
 }
 
 func JoinTemplateFromTemplateContent(templateContent, ip, cgroup string) []byte {
-	setKubeadmAPI(Version)
 	tmpl, err := template.New("text").Parse(templateContent)
 	defer func() {
 		if r := recover(); r != nil {
@@ -114,7 +91,6 @@ func JoinTemplateFromTemplateContent(templateContent, ip, cgroup string) []byte 
 }
 
 func TemplateFromTemplateContent(templateContent string) []byte {
-	setKubeadmAPI(Version)
 	tmpl, err := template.New("text").Parse(templateContent)
 	defer func() {
 		if r := recover(); r != nil {
@@ -133,11 +109,9 @@ func TemplateFromTemplateContent(templateContent string) []byte {
 	envMap["CertSANS"] = CertSANS
 	envMap["VIP"] = VIP
 	envMap["Masters"] = masters
-	envMap["Version"] = Version
 	envMap["ApiServer"] = APIServer
 	envMap["PodCIDR"] = PodCIDR
 	envMap["SvcCIDR"] = SvcCIDR
-	envMap["Repo"] = Repo
 	envMap["Master0"] = IPFormat(MasterIPs[0])
 	envMap["Network"] = Network
 	envMap["CgroupDriver"] = CgroupDriver
@@ -146,39 +120,4 @@ func TemplateFromTemplateContent(templateContent string) []byte {
 	var buffer bytes.Buffer
 	_ = tmpl.Execute(&buffer, envMap)
 	return buffer.Bytes()
-}
-
-// 根据yaml转换kubeadm结构
-func KubeadmDataFromYaml(context string) *KubeadmType {
-	yamls := strings.Split(context, "---")
-	if len(yamls) > 0 {
-		for _, y := range yamls {
-			cfg := strings.TrimSpace(y)
-			if cfg == "" {
-				continue
-			} else {
-				kubeadm := &KubeadmType{}
-				if err := yaml.Unmarshal([]byte(cfg), kubeadm); err == nil {
-					//
-					if kubeadm.Kind == "ClusterConfiguration" {
-						if kubeadm.Networking.DNSDomain == "" {
-							kubeadm.Networking.DNSDomain = "cluster.local"
-						}
-						return kubeadm
-					}
-				}
-			}
-		}
-	}
-	return nil
-}
-
-type KubeadmType struct {
-	Kind      string `yaml:"kind,omitempty"`
-	APIServer struct {
-		CertSANs []string `yaml:"certSANs,omitempty"`
-	} `yaml:"apiServer"`
-	Networking struct {
-		DNSDomain string `yaml:"dnsDomain,omitempty"`
-	} `yaml:"networking"`
 }

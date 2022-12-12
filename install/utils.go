@@ -44,9 +44,6 @@ func ExitInitCase() bool {
 	if len(MasterIPs) == 0 {
 		message = ErrorMasterEmpty
 	}
-	if Version == "" {
-		message += ErrorVersionEmpty
-	}
 	// 用户不写 --passwd, 默认走pk, 秘钥如果没有配置ssh互信, 则验证ssh的时候报错. 应该属于preRun里面
 	// first to auth password, second auth pk.
 	// 如果初始状态都没写, 默认都为空. 报这个错

@@ -39,7 +39,6 @@ func joinMastersFunc(joinMasters []string) {
 		Hosts:     joinMasters,
 		Masters:   masters,
 		Nodes:     nodes,
-		Network:   Network,
 		APIServer: APIServer,
 	}
 	i.CheckValid()
@@ -103,7 +102,7 @@ func (s *SealosInstaller) sendJoinCPConfig(joinMaster []string) {
 		wg.Add(1)
 		go func(master string) {
 			defer wg.Done()
-			cgroup := s.getCgroupDriverFromShell(master)
+			cgroup := ""
 			templateData := string(JoinTemplate(IPFormat(master), cgroup))
 			cmd := fmt.Sprintf(`echo "%s" > /root/kubeadm-join-config.yaml`, templateData)
 			_ = SSHConfig.CmdAsync(master, cmd)
@@ -122,7 +121,7 @@ func (s *SealosInstaller) JoinMasters(masters []string) {
 	s.sendJoinCPConfig(masters)
 
 	//join master do sth
-	cmd := s.Command(Version, JoinMaster)
+	cmd := s.Command("", JoinMaster)
 	for _, master := range masters {
 		wg.Add(1)
 		go func(master string) {
@@ -159,7 +158,7 @@ func (s *SealosInstaller) JoinNodes() {
 		go func(node string) {
 			defer wg.Done()
 			// send join node config
-			cgroup := s.getCgroupDriverFromShell(node)
+			cgroup := ""
 			templateData := string(JoinTemplate("", cgroup))
 			cmdJoinConfig := fmt.Sprintf(`echo "%s" > /root/kubeadm-join-config.yaml`, templateData)
 			_ = SSHConfig.CmdAsync(node, cmdJoinConfig)
@@ -177,7 +176,7 @@ func (s *SealosInstaller) JoinNodes() {
 			}
 
 			_ = SSHConfig.CmdAsync(node, ipvsCmd) // create ipvs rules before we join node
-			cmd := s.Command(Version, JoinNode)
+			cmd := s.Command("", JoinNode)
 			//create lvscare static pod
 			yaml := ipvs.LvsStaticPodYaml(VIP, MasterIPs, LvscareImage)
 			_ = SSHConfig.CmdAsync(node, cmd)

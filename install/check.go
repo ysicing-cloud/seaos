@@ -17,8 +17,6 @@ package install
 import (
 	"fmt"
 	"os"
-
-	"github.com/ysicing-cloud/sealos/net"
 )
 
 // SetHosts set hosts. if can't access to hostName, set /etc/hosts
@@ -45,7 +43,6 @@ func (s *SealosInstaller) CheckValid() {
 		os.Exit(1)
 	}
 	dict := make(map[string]bool)
-	var errList []string
 	for _, h := range s.Hosts {
 		hostname := SSHConfig.CmdToString(h, "hostname", "") //获取主机名
 		if hostname == "" {
@@ -61,34 +58,5 @@ func (s *SealosInstaller) CheckValid() {
 			}
 			s.Log.Infof("[%s]  ------------ check ok", h)
 		}
-		if s.Network == net.CILIUM {
-			if err := SSHConfig.CmdAsync(h, "uname -r | grep 5 | awk -F. '{if($2>3)print \"ok\"}' | grep ok && exit 0 || exit 1"); err != nil {
-				s.Log.Errorf("[%s] ------------ check kernel version  < 5.3", h)
-				os.Exit(1)
-			}
-			if err := SSHConfig.CmdAsync(h, "mount bpffs -t bpf /sys/fs/bpf && mount | grep /sys/fs/bpf && exit 0 || exit 1"); err != nil {
-				s.Log.Errorf("[%s] ------------ mount  bpffs err", h)
-				os.Exit(1)
-			}
-		}
-
-		// version >= 1.20 , Add prefight for containerd
-		if For120(Version) {
-			// for containerd. if docker exist ; exit frist.
-
-			dockerExist := SSHConfig.CmdToString(h, "command -v dockerd &> /dev/null && echo yes || :", "")
-			if dockerExist == "yes" {
-				errList = append(errList, h)
-			}
-		}
-	}
-
-	if len(errList) >= 1 {
-		s.Log.Error(`docker exist error when kubernetes version >= 1.20.
-sealos install kubernetes version >= 1.20 use containerd cri instead. 
-please uninstall docker on [%s]. For example run on centos7: "yum remove docker-ce containerd-io -y",  
-see details:  https://github.com/ysicing-cloud/sealos/issues/582
-					`, errList)
-		os.Exit(-1)
 	}
 }
