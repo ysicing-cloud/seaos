@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/pkg/sftp"
-	"github.com/sirupsen/logrus"
 	"github.com/ysicing-cloud/sealos/pkg/sshcmd/md5sum"
 	"golang.org/x/crypto/ssh"
 )
@@ -38,17 +37,17 @@ func (ss *SSH) CopyForMD5(host, localFilePath, remoteFilePath, md5 string) bool 
 	if md5 == "" {
 		md5 = md5sum.FromLocal(localFilePath)
 	}
-	logrus.Debugf("[ssh]source file md5 value is %s", md5)
+	ss.Log.Debugf("[ssh]source file md5 value is %s", md5)
 	ss.Copy(host, localFilePath, remoteFilePath)
 	remoteMD5 := ss.Md5Sum(host, remoteFilePath)
-	logrus.Debugf("[ssh]host: %s , remote md5: %s", host, remoteMD5)
+	ss.Log.Debugf("[ssh]host: %s , remote md5: %s", host, remoteMD5)
 	remoteMD5 = strings.TrimSpace(remoteMD5)
 	md5 = strings.TrimSpace(md5)
 	if remoteMD5 == md5 {
-		logrus.Info("[ssh]md5 validate true")
+		ss.Log.Info("[ssh]md5 validate true")
 		return true
 	}
-	logrus.Error("[ssh]md5 validate false")
+	ss.Log.Error("[ssh]md5 validate false")
 	return false
 }
 
@@ -63,7 +62,7 @@ func (ss *SSH) Copy(host, localFilePath, remoteFilePath string) {
 	sftpClient, err := ss.sftpConnect(host)
 	defer func() {
 		if r := recover(); r != nil {
-			logrus.Errorf("[ssh][%s]scpCopy: %s", host, err)
+			ss.Log.Errorf("[ssh][%s]scpCopy: %s", host, err)
 		}
 	}()
 	if err != nil {
@@ -73,7 +72,7 @@ func (ss *SSH) Copy(host, localFilePath, remoteFilePath string) {
 	srcFile, err := os.Open(localFilePath)
 	defer func() {
 		if r := recover(); r != nil {
-			logrus.Errorf("[ssh][%s]scpCopy: %s", host, err)
+			ss.Log.Errorf("[ssh][%s]scpCopy: %s", host, err)
 		}
 	}()
 	if err != nil {
@@ -84,7 +83,7 @@ func (ss *SSH) Copy(host, localFilePath, remoteFilePath string) {
 	dstFile, err := sftpClient.Create(remoteFilePath)
 	defer func() {
 		if r := recover(); r != nil {
-			logrus.Errorf("[ssh][%s]scpCopy: %s", host, err)
+			ss.Log.Errorf("[ssh][%s]scpCopy: %s", host, err)
 		}
 	}()
 	if err != nil {
@@ -112,7 +111,7 @@ func (ss *SSH) Copy(host, localFilePath, remoteFilePath string) {
 			speed = length / oneMBByte
 		}
 		totalLength, totalUnit := toSizeFromInt(total)
-		logrus.Infof("[ssh][%s]transfer total size is: %.2f%s ;speed is %d%s", host, totalLength, totalUnit, speed, unit)
+		ss.Log.Infof("[ssh][%s]transfer total size is: %.2f%s ;speed is %d%s", host, totalLength, totalUnit, speed, unit)
 	}
 }
 
@@ -124,7 +123,7 @@ func (ss *SSH) CopyConfigFile(host, remoteFilePath string, localFilePathOrBytes 
 	sftpClient, err := ss.sftpConnect(host)
 	defer func() {
 		if r := recover(); r != nil {
-			logrus.Errorf("[ssh][%s]scpCopy: %s", host, err)
+			ss.Log.Errorf("[ssh][%s]scpCopy: %s", host, err)
 		}
 	}()
 	if err != nil {
@@ -137,7 +136,7 @@ func (ss *SSH) CopyConfigFile(host, remoteFilePath string, localFilePathOrBytes 
 		srcFile, err := os.Open(v)
 		defer func() {
 			if r := recover(); r != nil {
-				logrus.Errorf("[ssh][%s]scpCopy: %s", host, err)
+				ss.Log.Errorf("[ssh][%s]scpCopy: %s", host, err)
 			}
 		}()
 		if err != nil {
@@ -154,7 +153,7 @@ func (ss *SSH) CopyConfigFile(host, remoteFilePath string, localFilePathOrBytes 
 	dstFile, err := sftpClient.Create(remoteFilePath)
 	defer func() {
 		if r := recover(); r != nil {
-			logrus.Errorf("[ssh][%s]scpCopy: %s", host, err)
+			ss.Log.Errorf("[ssh][%s]scpCopy: %s", host, err)
 		}
 	}()
 	if err != nil {
@@ -170,7 +169,7 @@ func (ss *SSH) CopyConfigFile(host, remoteFilePath string, localFilePathOrBytes 
 		}
 		length, _ := dstFile.Write(buf[0:n])
 		totalMB += length / oneMBByte
-		logrus.Infof("[ssh][%s]transfer total size is: %d%s", host, totalMB, "MB")
+		ss.Log.Infof("[ssh][%s]transfer total size is: %d%s", host, totalMB, "MB")
 	}
 }
 
@@ -219,7 +218,7 @@ func (ss *SSH) CopyRemoteFileToLocal(host, localFilePath, remoteFilePath string)
 	sftpClient, err := ss.sftpConnect(host)
 	defer func() {
 		if r := recover(); r != nil {
-			logrus.Errorf("[ssh][%s]scpCopy: %s", host, err)
+			ss.Log.Errorf("[ssh][%s]scpCopy: %s", host, err)
 		}
 	}()
 	if err != nil {
@@ -230,7 +229,7 @@ func (ss *SSH) CopyRemoteFileToLocal(host, localFilePath, remoteFilePath string)
 	srcFile, err := sftpClient.Open(remoteFilePath)
 	defer func() {
 		if r := recover(); r != nil {
-			logrus.Errorf("[ssh][%s]scpCopy: %s", host, err)
+			ss.Log.Errorf("[ssh][%s]scpCopy: %s", host, err)
 		}
 	}()
 	if err != nil {
@@ -242,7 +241,7 @@ func (ss *SSH) CopyRemoteFileToLocal(host, localFilePath, remoteFilePath string)
 	dstFile, err := os.Create(localFilePath)
 	defer func() {
 		if r := recover(); r != nil {
-			logrus.Errorf("[ssh][%s]scpCopy: %s", host, err)
+			ss.Log.Errorf("[ssh][%s]scpCopy: %s", host, err)
 		}
 	}()
 	if err != nil {
@@ -258,7 +257,7 @@ func (ss *SSH) CopyLocalToRemote(host, localPath, remotePath string) {
 	sftpClient, err := ss.sftpConnect(host)
 	defer func() {
 		if r := recover(); r != nil {
-			logrus.Errorf("[ssh][%s]sshConnect err: %s", host, err)
+			ss.Log.Errorf("[ssh][%s]sshConnect err: %s", host, err)
 		}
 	}()
 	if err != nil {
@@ -267,7 +266,7 @@ func (ss *SSH) CopyLocalToRemote(host, localPath, remotePath string) {
 	sshClient, err := ss.connect(host)
 	defer func() {
 		if r := recover(); r != nil {
-			logrus.Errorf("[ssh][%s]scpConnect err: %s", host, err)
+			ss.Log.Errorf("[ssh][%s]scpConnect err: %s", host, err)
 		}
 	}()
 	if err != nil {
@@ -291,7 +290,7 @@ func (ss *SSH) copyLocalDirToRemote(host string, sshClient *ssh.Client, sftpClie
 	localFiles, err := os.ReadDir(localPath)
 	defer func() {
 		if r := recover(); r != nil {
-			logrus.Errorf("readDir err : %s", err)
+			ss.Log.Errorf("readDir err : %s", err)
 		}
 	}()
 	if err != nil {
@@ -315,7 +314,7 @@ func (ss *SSH) copyLocalFileToRemote(host string, sshClient *ssh.Client, sftpCli
 	srcFile, err := os.Open(localPath)
 	defer func() {
 		if r := recover(); r != nil {
-			logrus.Errorf("open file [%s] err : %s", localPath, err)
+			ss.Log.Errorf("open file [%s] err : %s", localPath, err)
 		}
 	}()
 	if err != nil {
@@ -324,7 +323,7 @@ func (ss *SSH) copyLocalFileToRemote(host string, sshClient *ssh.Client, sftpCli
 	defer srcFile.Close()
 	dstFile, err := sftpClient.Create(remotePath)
 	if err != nil {
-		logrus.Error("err:", err)
+		ss.Log.Error("err:", err)
 	}
 	defer dstFile.Close()
 	buf := make([]byte, 100*oneMBByte) //100mb
@@ -348,10 +347,10 @@ func (ss *SSH) copyLocalFileToRemote(host string, sshClient *ssh.Client, sftpCli
 			speed = length / oneMBByte
 		}
 		totalLength, totalUnit := toSizeFromInt(total)
-		logrus.Debugf("[ssh][%s]transfer local [%s] to Dst [%s] total size is: %.2f%s ;speed is %d%s", host, localPath, remotePath, totalLength, totalUnit, speed, unit)
+		ss.Log.Debugf("[ssh][%s]transfer local [%s] to Dst [%s] total size is: %.2f%s ;speed is %d%s", host, localPath, remotePath, totalLength, totalUnit, speed, unit)
 	}
 	if !ss.isCopyMd5Success(sshClient, localPath, remotePath) {
-		logrus.Errorf("[ssh][%s] copy local file: %s to remote file: %s validate md5sum failed", host, localPath, remotePath)
+		ss.Log.Errorf("[ssh][%s] copy local file: %s to remote file: %s validate md5sum failed", host, localPath, remotePath)
 	}
 }
 
@@ -379,7 +378,7 @@ func (ss *SSH) isCopyMd5Success(sshClient *ssh.Client, localFile, remoteFile str
 	b, err := sshSession.CombinedOutput(cmd)
 	defer func() {
 		if r := recover(); r != nil {
-			logrus.Errorf("[ssh]Error exec command failed: %s", err)
+			ss.Log.Errorf("[ssh]Error exec command failed: %s", err)
 		}
 	}()
 	if err != nil {

@@ -20,8 +20,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/sirupsen/logrus"
 )
 
 const oneKBByte = 1024
@@ -42,7 +40,7 @@ func (ss *SSH) LoggerFileSize(host, filename string, size int) {
 			}
 			lengthFloat := float64(lengthByte)
 			value, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", lengthFloat/oneMBByte), 64)
-			logrus.Infof("[ssh][%s]transfer total size is: %.2f%s", host, value, "MB")
+			ss.Log.Infof("[ssh][%s]transfer total size is: %.2f%s", host, value, "MB")
 		}
 	}
 }
@@ -61,7 +59,7 @@ func (ss *SSH) IsFileExist(host, remoteFilePath string) bool {
 	count, err := strconv.Atoi(strings.TrimSpace(data))
 	defer func() {
 		if r := recover(); r != nil {
-			logrus.Errorf("[ssh][%s]RemoteFileExist:%s", host, err)
+			ss.Log.Errorf("[ssh][%s]RemoteFileExist:%s", host, err)
 		}
 	}()
 	if err != nil {

@@ -38,6 +38,7 @@ func (s *SealosInstaller) CheckValid() {
 		s.Log.Error("hosts not allow empty")
 		os.Exit(1)
 	}
+	SSHConfig.Log = s.Log
 	if SSHConfig.User == "" {
 		s.Log.Error("user not allow empty")
 		os.Exit(1)
@@ -56,7 +57,7 @@ func (s *SealosInstaller) CheckValid() {
 				s.Log.Error("duplicate hostnames is not allowed")
 				os.Exit(1)
 			}
-			s.Log.Infof("[%s]  ------------ check ok", h)
+			s.Log.Donef("%s check pass", h)
 		}
 	}
 }

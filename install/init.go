@@ -20,10 +20,13 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"github.com/ergoapi/log"
 )
 
 // BuildInit is
 func BuildInit() {
+	slog := log.GetInstance()
 	MasterIPs = ParseIPs(MasterIPs)
 	NodeIPs = ParseIPs(NodeIPs)
 	// 所有master节点
@@ -36,6 +39,7 @@ func BuildInit() {
 		Masters:   masters,
 		Nodes:     nodes,
 		APIServer: APIServer,
+		Log:       slog,
 	}
 	i.CheckValid()
 	i.Print()

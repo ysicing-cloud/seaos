@@ -19,16 +19,18 @@ import (
 	"io"
 	"strings"
 
+	"github.com/ergoapi/log"
+
 	"github.com/sirupsen/logrus"
 )
 
 // Cmd is in host exec cmd
 func (ss *SSH) Cmd(host string, cmd string) []byte {
-	logrus.Infof("[ssh][%s] %s", host, cmd)
+	ss.Log.Infof("[ssh][%s] %s", host, cmd)
 	session, err := ss.Connect(host)
 	defer func() {
 		if r := recover(); r != nil {
-			logrus.Errorf("[ssh][%s]Error create ssh session failed,%s", host, err)
+			ss.Log.Errorf("[ssh][%s]Error create ssh session failed,%s", host, err)
 		}
 	}()
 	if err != nil {
@@ -36,10 +38,10 @@ func (ss *SSH) Cmd(host string, cmd string) []byte {
 	}
 	defer session.Close()
 	b, err := session.CombinedOutput(cmd)
-	logrus.Debugf("[ssh][%s]command result is: %s", host, string(b))
+	ss.Log.Debugf("[ssh][%s]command result is: %s", host, string(b))
 	defer func() {
 		if r := recover(); r != nil {
-			logrus.Errorf("[ssh][%s]Error exec command failed: %s", host, err)
+			ss.Log.Errorf("[ssh][%s]Error exec command failed: %s", host, err)
 		}
 	}()
 	if err != nil {
@@ -48,15 +50,15 @@ func (ss *SSH) Cmd(host string, cmd string) []byte {
 	return b
 }
 
-func readPipe(host string, pipe io.Reader, isErr bool) {
+func readPipe(slog log.Logger, host string, pipe io.Reader, isErr bool) {
 	r := bufio.NewReader(pipe)
 	for {
 		line, _, err := r.ReadLine()
 		if line == nil {
 			return
 		} else if err != nil {
-			logrus.Infof("[%s] %s", host, line)
-			logrus.Errorf("[ssh] [%s] %s", host, err)
+			slog.Infof("[%s] %s", host, line)
+			slog.Errorf("[ssh] [%s] %s", host, err)
 			return
 		} else {
 			if isErr {
@@ -69,35 +71,35 @@ func readPipe(host string, pipe io.Reader, isErr bool) {
 }
 
 func (ss *SSH) CmdAsync(host string, cmd string) error {
-	logrus.Debugf("[%s] %s", host, cmd)
+	ss.Log.Debugf("[%s] %s", host, cmd)
 	session, err := ss.Connect(host)
 	if err != nil {
-		logrus.Errorf("[ssh][%s]Error create ssh session failed,%s", host, err)
+		ss.Log.Errorf("[ssh][%s]Error create ssh session failed,%s", host, err)
 		return err
 	}
 	defer session.Close()
 	stdout, err := session.StdoutPipe()
 	if err != nil {
-		logrus.Errorf("[ssh][%s]Unable to request StdoutPipe(): %s", host, err)
+		ss.Log.Errorf("[ssh][%s]Unable to request StdoutPipe(): %s", host, err)
 		return err
 	}
 	stderr, err := session.StderrPipe()
 	if err != nil {
-		logrus.Errorf("[ssh][%s]Unable to request StderrPipe(): %s", host, err)
+		ss.Log.Errorf("[ssh][%s]Unable to request StderrPipe(): %s", host, err)
 		return err
 	}
 	if err := session.Start(cmd); err != nil {
-		logrus.Errorf("[ssh][%s]Unable to execute command: %s", host, err)
+		ss.Log.Errorf("[ssh][%s]Unable to execute command: %s", host, err)
 		return err
 	}
 	doneout := make(chan bool, 1)
 	doneerr := make(chan bool, 1)
 	go func() {
-		readPipe(host, stderr, true)
+		readPipe(ss.Log, host, stderr, true)
 		doneerr <- true
 	}()
 	go func() {
-		readPipe(host, stdout, false)
+		readPipe(ss.Log, host, stdout, false)
 		doneout <- true
 	}()
 	<-doneerr

@@ -14,7 +14,11 @@
 
 package sshutil
 
-import "time"
+import (
+	"time"
+
+	"github.com/ergoapi/log"
+)
 
 type SSH struct {
 	User       string
@@ -22,4 +26,5 @@ type SSH struct {
 	PkFile     string
 	PkPassword string
 	Timeout    *time.Duration
+	Log        log.Logger
 }

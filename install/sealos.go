@@ -59,7 +59,7 @@ type SealosInstaller struct {
 	Masters   []string
 	Nodes     []string
 	APIServer string
-	Log       log.Logger
+	Log       log.Logger `json:"-"`
 }
 
 type CommandType string
