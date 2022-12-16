@@ -20,6 +20,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/ergoapi/log"
 	"github.com/ysicing-cloud/sealos/ipvs"
 	sshcmd "github.com/ysicing-cloud/sealos/pkg/sshcmd/cmd"
 )
@@ -31,7 +32,7 @@ type SealosClean struct {
 
 // BuildClean clean the build resources.
 func BuildClean(deleteNodes, deleteMasters []string) {
-	i := &SealosClean{cleanAll: false}
+	i := &SealosClean{cleanAll: false, SealosInstaller: SealosInstaller{Log: log.GetInstance()}}
 	masters := MasterIPs
 	nodes := NodeIPs
 	//1. 删除masters
@@ -158,8 +159,7 @@ func (s *SealosClean) cleanMaster(master string) {
 			wg.Add(1)
 			go func(node string) {
 				defer wg.Done()
-				_ = SSHConfig.CmdAsync(node, "rm -rf  /etc/kubernetes/manifests/kube-sealyun-lvscare*")
-				_ = SSHConfig.CmdAsync(node, fmt.Sprintf("mkdir -p /etc/kubernetes/manifests && echo '%s' > /etc/kubernetes/manifests/kube-sealyun-lvscare.yaml", yaml))
+				_ = SSHConfig.CmdAsync(node, fmt.Sprintf("mkdir -p /var/lib/rancher/k3s/agent/pod-manifests && echo '%s' > /var/lib/rancher/k3s/agent/pod-manifests/kube-sealyun-lvscare.yaml", yaml))
 			}(node)
 		}
 		wg.Wait()
@@ -167,31 +167,15 @@ func (s *SealosClean) cleanMaster(master string) {
 }
 
 func clean(host string) {
-	cmd := "kubeadm reset -f " + vlogToStr()
+	cmd := "modprobe -r ipip  && lsmod"
 	_ = SSHConfig.CmdAsync(host, cmd)
-	cmd = `sed -i '/kubectl/d;/sealos/d' /root/.bashrc`
+	cmd = "rm -rf ~/.kube"
 	_ = SSHConfig.CmdAsync(host, cmd)
-	cmd = "modprobe -r ipip  && lsmod"
+	cmd = "systemctl stop k3s && systemctl disable k3s && rm -rf /etc/systemd/system/k3s.service"
 	_ = SSHConfig.CmdAsync(host, cmd)
-	cmd = "rm -rf ~/.kube/ && rm -rf /etc/kubernetes/"
-	_ = SSHConfig.CmdAsync(host, cmd)
-	cmd = "rm -rf /etc/systemd/system/kubelet.service.d && rm -rf /etc/systemd/system/kubelet.service"
-	_ = SSHConfig.CmdAsync(host, cmd)
-	cmd = "rm -rf /usr/bin/kube* "
-	_ = SSHConfig.CmdAsync(host, cmd)
-	cmd = "rm -rf /etc/cni && rm -rf /opt/cni"
-	_ = SSHConfig.CmdAsync(host, cmd)
-	cmd = "rm -rf /var/lib/etcd && rm -rf /var/etcd"
+	cmd = "rm -rf /var/lib/rancher /etc/rancher"
 	_ = SSHConfig.CmdAsync(host, cmd)
 	cmd = fmt.Sprintf("sed -i \"/%s/d\" /etc/hosts ", APIServer)
-	_ = SSHConfig.CmdAsync(host, cmd)
-	cmd = "rm -rf ~/kube"
-	_ = SSHConfig.CmdAsync(host, cmd)
-	//clean pki certs
-	cmd = "rm -rf /etc/kubernetes/pki"
-	_ = SSHConfig.CmdAsync(host, cmd)
-	//clean sealos in /usr/bin/ except exec sealos
-	cmd = "ps -ef |grep -v 'grep'|grep sealos >/dev/null || rm -rf /usr/bin/sealos"
 	_ = SSHConfig.CmdAsync(host, cmd)
 }
 

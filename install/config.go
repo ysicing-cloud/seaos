@@ -52,6 +52,8 @@ type SealConfig struct {
 	LvscareName string
 	LvscareTag  string
 
+	Token string
+
 	Log log.Logger
 }
 
@@ -80,6 +82,7 @@ func (c *SealConfig) Dump(path string) {
 	//lvscare
 	c.LvscareName = LvscareImage.Image
 	c.LvscareTag = LvscareImage.Tag
+	c.Token = Token
 	y, err := yaml.Marshal(c)
 	if err != nil {
 		c.Log.Errorf("dump config file failed: %s", err)
@@ -146,6 +149,7 @@ func (c *SealConfig) Load(path string) (err error) {
 	//lvscare
 	LvscareImage.Image = c.LvscareName
 	LvscareImage.Tag = c.LvscareTag
+	Token = c.Token
 	return
 }
 
@@ -162,29 +166,4 @@ func Load(path string, content interface{}) error {
 		slog.Errorf("unmarshal config file failed: %s", err)
 	}
 	return nil
-}
-
-func (c *SealConfig) ShowDefaultConfig() {
-	home, _ := os.UserHomeDir()
-	c.Masters = []string{"192.168.0.2", "192.168.0.2", "192.168.0.2"}
-	c.Nodes = []string{"192.168.0.3", "192.168.0.4"}
-	c.User = "root"
-	c.Passwd = "123456"
-	c.PrivateKey = home + "/.ssh/id_rsa"
-	c.APIServerDomain = defaultAPIServerDomain
-	c.VIP = "10.103.97.2"
-	c.PkgURL = home + "/kube1.17.13.tar.gz"
-	c.PodCIDR = "100.64.0.0/10"
-	c.SvcCIDR = "10.96.0.0/12"
-	c.APIServerCertSANs = []string{"apiserver.cluster.local", "127.0.0.1"}
-	c.LvscareName = "fanux/lvscare"
-	c.LvscareTag = "latest"
-
-	y, err := yaml.Marshal(c)
-	if err != nil {
-		c.Log.Errorf("marshal config file failed: %s", err)
-	}
-
-	c.Log.Infof("\n\n%s\n\n", string(y))
-	c.Log.Infof("Please save above config in ~/.sealos/config.yaml and edit values on your own")
 }

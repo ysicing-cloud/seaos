@@ -16,9 +16,9 @@ package install
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 
+	"github.com/ergoapi/log"
 	"github.com/ysicing-cloud/sealos/ipvs"
 )
 
@@ -40,15 +40,20 @@ func joinMastersFunc(joinMasters []string) {
 		Masters:   masters,
 		Nodes:     nodes,
 		APIServer: APIServer,
+		Log:       log.GetInstance(),
 	}
 	i.CheckValid()
 	i.SendSealos()
 	i.SendPackage()
-	i.GeneratorCerts()
 	i.JoinMasters(joinMasters)
 	//master join to MasterIPs
 	MasterIPs = append(MasterIPs, joinMasters...)
 	i.lvscare()
+}
+
+// 返回/etc/hosts记录
+func getApiserverHost(ipAddr string) (host string) {
+	return fmt.Sprintf("%s %s", ipAddr, APIServer)
 }
 
 // joinNodesFunc is join nodes func
@@ -59,40 +64,14 @@ func joinNodesFunc(joinNodes []string) {
 		Hosts:   nodes,
 		Masters: MasterIPs,
 		Nodes:   nodes,
+		Log:     log.GetInstance(),
 	}
 	i.CheckValid()
 	i.SendSealos()
 	i.SendPackage()
-	i.GeneratorToken()
 	i.JoinNodes()
 	//node join to NodeIPs
 	NodeIPs = append(NodeIPs, joinNodes...)
-}
-
-// GeneratorToken is
-// 这里主要是为了获取CertificateKey
-func (s *SealosInstaller) GeneratorCerts() {
-	cmd := `kubeadm init phase upload-certs --upload-certs` + vlogToStr()
-	output := SSHConfig.CmdToString(s.Masters[0], cmd, "\r\n")
-	s.Log.Debugf("[globals]decodeCertCmd: %s", output)
-	slice := strings.Split(output, "Using certificate key:\r\n")
-	slice1 := strings.Split(slice[1], "\r\n")
-	CertificateKey = slice1[0]
-	cmd = "kubeadm token create --print-join-command" + vlogToStr()
-	out := SSHConfig.Cmd(s.Masters[0], cmd)
-	decodeOutput(out)
-}
-
-// GeneratorToken is
-func (s *SealosInstaller) GeneratorToken() {
-	cmd := `kubeadm token create --print-join-command` + vlogToStr()
-	output := SSHConfig.Cmd(s.Masters[0], cmd)
-	decodeOutput(output)
-}
-
-// 返回/etc/hosts记录
-func getApiserverHost(ipAddr string) (host string) {
-	return fmt.Sprintf("%s %s", ipAddr, APIServer)
 }
 
 // JoinMasters is
@@ -106,8 +85,8 @@ func (s *SealosInstaller) JoinMasters(masters []string) {
 			defer wg.Done()
 			s.genMasterService(false, "/tmp/k3s.masterx.service")
 			SSHConfig.CopyLocalToRemote(master, "/tmp/k3s.masterx.service", "/etc/systemd/system/k3s.service")
-			// cmdHosts := fmt.Sprintf("echo %s >> /etc/hosts", getApiserverHost(IPFormat(s.Masters[0])))
-			// _ = SSHConfig.CmdAsync(master, cmdHosts)
+			cmdHosts := fmt.Sprintf("echo %s >> /etc/hosts", getApiserverHost(IPFormat(s.Masters[0])))
+			_ = SSHConfig.CmdAsync(master, cmdHosts)
 			// cmdMult := fmt.Sprintf("%s --apiserver-advertise-address %s", cmd, IpFormat(master))
 			_ = SSHConfig.CmdAsync(master, cmd)
 			// cmdHosts = fmt.Sprintf(`sed "s/%s/%s/g" -i /etc/hosts`, getApiserverHost(IPFormat(s.Masters[0])), getApiserverHost(IPFormat(master)))
@@ -158,7 +137,6 @@ func (s *SealosInstaller) JoinNodes() {
 			_ = SSHConfig.CmdAsync(node, cleaninstall)
 		}(node)
 	}
-
 	wg.Wait()
 }
 
@@ -169,23 +147,8 @@ func (s *SealosInstaller) lvscare() {
 		go func(node string) {
 			defer wg.Done()
 			yaml := ipvs.LvsStaticPodYaml(VIP, MasterIPs, LvscareImage)
-			_ = SSHConfig.Cmd(node, "rm -rf  /etc/kubernetes/manifests/kube-sealyun-lvscare* || :")
-			SSHConfig.CopyConfigFile(node, "/etc/kubernetes/manifests/kube-sealyun-lvscare.yaml", []byte(yaml))
-		}(node)
-	}
-
-	wg.Wait()
-}
-
-func (s *SealosInstaller) sendKubeConfigFile(hosts []string, kubeFile string) {
-	// absKubeFile := cert.KubernetesDir + "/" + kubeFile
-	// sealosKubeFile := cert.SealosConfigDir + "/" + kubeFile
-	var wg sync.WaitGroup
-	for _, node := range hosts {
-		wg.Add(1)
-		go func(node string) {
-			defer wg.Done()
-			// SSHConfig.CopyLocalToRemote(node, sealosKubeFile, absKubeFile)
+			_ = SSHConfig.Cmd(node, "rm -rf /var/lib/rancher/k3s/agent/pod-manifests/kube-sealyun-lvscare.yaml || :")
+			SSHConfig.CopyConfigFile(node, "/var/lib/rancher/k3s/agent/pod-manifests/kube-sealyun-lvscare.yaml", []byte(yaml))
 		}(node)
 	}
 	wg.Wait()

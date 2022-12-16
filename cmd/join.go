@@ -41,19 +41,18 @@ func JoinCmd(f factory.Factory) *cobra.Command {
 	}
 	joinCmd.Flags().StringSliceVar(&install.MasterIPs, "master", []string{}, "kubernetes multi-master ex. 192.168.0.5-192.168.0.5")
 	joinCmd.Flags().StringSliceVar(&install.NodeIPs, "node", []string{}, "kubernetes multi-nodes ex. 192.168.0.5-192.168.0.5")
-	joinCmd.Flags().IntVar(&install.Vlog, "vlog", 0, "kubeadm log level")
 	return joinCmd
 }
 
 func JoinCmdFunc(cmd *cobra.Command, args []string) {
-	slog := log.GetInstance()
 	beforeNodes := install.ParseIPs(install.NodeIPs)
 	beforeMasters := install.ParseIPs(install.MasterIPs)
-
-	c := &install.SealConfig{}
+	slog := log.GetInstance()
+	c := &install.SealConfig{
+		Log: slog,
+	}
 	if err := c.Load(cfgFile); err != nil {
 		slog.Error(err)
-		c.ShowDefaultConfig()
 		os.Exit(0)
 	}
 

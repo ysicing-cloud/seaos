@@ -16,7 +16,6 @@ package install
 
 import (
 	"regexp"
-	"strconv"
 
 	"github.com/sealyun/lvscare/care"
 
@@ -65,8 +64,6 @@ var (
 	CleanForce bool
 	CleanAll   bool
 
-	Vlog int
-
 	InDocker     bool
 	SnapshotName string
 	EtcdBackDir  string
@@ -78,11 +75,6 @@ var (
 	BucketName       string
 	ObjectPath       string
 )
-
-func vlogToStr() string {
-	str := strconv.Itoa(Vlog)
-	return " -v " + str
-}
 
 type metadata struct {
 	K8sVersion string `json:"k8sVersion"`

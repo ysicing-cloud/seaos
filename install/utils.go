@@ -66,20 +66,6 @@ func ExitDeleteCase(pkgURL string) bool {
 	return pkgURLCheck(pkgURL)
 }
 
-func ExitInstallCase(pkgURL string) bool {
-	// values.yaml 使用了-f 但是文件不存在. 并且不使用 stdin
-	if Values != "-" && !FileExist(Values) && Values != "" {
-		logrus.Error("your values File is not exist and you have no stdin input, Please check your Values.yaml is exist")
-		return true
-	}
-	// PackageConfig 使用了-c 但是文件不存在
-	if PackageConfig != "" && !FileExist(PackageConfig) {
-		logrus.Error("your install APP pkg-config File is not exist, Please check your pkg-config is exist")
-		return true
-	}
-	return pkgURLCheck(pkgURL)
-}
-
 func pkgURLCheck(pkgURL string) bool {
 	if !strings.HasPrefix(pkgURL, "http") && !FileExist(pkgURL) {
 		message = ErrorFileNotExist

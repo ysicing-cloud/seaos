@@ -51,7 +51,6 @@ func GetExecFlag(cfgFile string) *ExecFlag {
 	err := e.Load(cfgFile)
 	if err != nil {
 		e.Log.Error(err)
-		e.ShowDefaultConfig()
 		os.Exit(0)
 	}
 	e.Dst = Dst

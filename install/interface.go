@@ -42,7 +42,6 @@ type Clean interface {
 type Join interface {
 	JoinMasters()
 	JoinNodes()
-	GeneratorToken()
 }
 
 type Apply interface {

@@ -105,7 +105,6 @@ func InitCmd(f factory.Factory) *cobra.Command {
 		},
 	}
 
-	initCmd.AddCommand(NewInitGenerateCmd())
 	// Here you will define your flags and configuration settings.
 	initCmd.Flags().StringVar(&install.SSHConfig.User, "user", "root", "servers user name for ssh")
 	initCmd.Flags().StringVar(&install.SSHConfig.Password, "passwd", "", "password for ssh")
@@ -125,15 +124,4 @@ func InitCmd(f factory.Factory) *cobra.Command {
 	initCmd.Flags().StringVar(&install.LvscareImage.Image, "lvscare-image", "fanux/lvscare", "lvscare image name")
 	initCmd.Flags().StringVar(&install.LvscareImage.Tag, "lvscare-tag", "latest", "lvscare image tag name")
 	return initCmd
-}
-
-func NewInitGenerateCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "gen",
-		Short: "show default sealos init config",
-		Run: func(cmd *cobra.Command, args []string) {
-			c := &install.SealConfig{}
-			c.ShowDefaultConfig()
-		},
-	}
 }

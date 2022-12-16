@@ -53,7 +53,6 @@ func CleanCmd(f factory.Factory) *cobra.Command {
 	cleanCmd.Flags().StringSliceVar(&install.MasterIPs, "master", []string{}, "clean master ips.kubernetes multi-nodes ex. 192.168.0.5-192.168.0.5")
 	cleanCmd.PersistentFlags().BoolVarP(&install.CleanForce, "force", "f", false, "if this is true, will no prompt")
 	cleanCmd.PersistentFlags().BoolVar(&install.CleanAll, "all", false, "if this is true, delete all ")
-	cleanCmd.Flags().IntVar(&install.Vlog, "vlog", 0, "kubeadm log level")
 	return cleanCmd
 }
 
