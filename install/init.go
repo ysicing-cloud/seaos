@@ -22,6 +22,8 @@ import (
 	"strings"
 
 	"github.com/ergoapi/log"
+	"github.com/ergoapi/util/file"
+	"github.com/ysicing-cloud/sealos/internal/pkg/k3s"
 )
 
 // BuildInit is
@@ -39,37 +41,25 @@ func BuildInit() {
 		Masters:   masters,
 		Nodes:     nodes,
 		APIServer: APIServer,
+		Token:     Token,
 		Log:       slog,
 	}
 	i.CheckValid()
 	i.Print()
 	i.SendSealos()
 	i.SendPackage()
-	i.Print("SendPackage")
-
 	i.InstallMaster0()
-	i.Print("SendPackage", "KubeadmConfigInstall", "InstallMaster0")
 	if len(masters) > 1 {
 		i.JoinMasters(i.Masters[1:])
-		i.Print("SendPackage", "KubeadmConfigInstall", "InstallMaster0", "JoinMasters")
 	}
 	if len(nodes) > 0 {
 		i.JoinNodes()
-		i.Print("SendPackage", "KubeadmConfigInstall", "InstallMaster0", "JoinMasters", "JoinNodes")
 	}
 	i.PrintFinish()
 }
 
-func getDefaultSANs() []string {
-	var sans = []string{"127.0.0.1", "apiserver.cluster.local", VIP}
-	// 指定的certSANS不为空, 则添加进去
-	if len(CertSANS) != 0 {
-		sans = append(sans, CertSANS...)
-	}
-	for _, master := range MasterIPs {
-		sans = append(sans, IPFormat(master))
-	}
-	return sans
+func getDefaultSANs() string {
+	return fmt.Sprintf("apiserver.cluster.local,%v", VIP)
 }
 
 func (s *SealosInstaller) appendAPIServer() error {
@@ -97,43 +87,34 @@ func (s *SealosInstaller) appendAPIServer() error {
 	return write.Flush()
 }
 
+func (s *SealosInstaller) genMasterService(master0 bool, path string) error {
+	s.Log.Info("gen master k3s service")
+	tpl := k3s.NewService("master", k3s.MetaData{Master0: master0, TLSSAN: getDefaultSANs(), Docker: true, Server: "https://apiserver.cluster.local:6443", Token: s.Token}).Template()
+	return file.WriteToFile(path, []byte(tpl))
+}
+
+func (s *SealosInstaller) genWorkerService(path string) error {
+	s.Log.Info("gen worker k3s service")
+	tpl := k3s.NewService("worker", k3s.MetaData{Docker: true, Server: "https://apiserver.cluster.local:6443", Token: s.Token}).Template()
+	return file.WriteToFile(path, []byte(tpl))
+}
+
 // InstallMaster0 is
 func (s *SealosInstaller) InstallMaster0() {
-	s.SendKubeConfigs([]string{s.Masters[0]})
-	s.sendNewCertAndKey([]string{s.Masters[0]})
+	s.Log.Info("init first master")
+	s.genMasterService(true, "/tmp/k3s.master0.service")
+	s.sendFile([]string{s.Masters[0]}, "/tmp/k3s.master0.service", "/etc/systemd/system/k3s.service")
 
 	// remote server run sealos init . it can not reach apiserver.cluster.local , should add masterip apiserver.cluster.local to /etc/hosts
-	err := s.appendAPIServer()
-	if err != nil {
-		s.Log.Warnf("append  %s %s to /etc/hosts err: %s", IPFormat(s.Masters[0]), APIServer, err)
-	}
-	//master0 do sth
-	cmd := fmt.Sprintf("grep -qF '%s %s' /etc/hosts || echo %s %s >> /etc/hosts", IPFormat(s.Masters[0]), APIServer, IPFormat(s.Masters[0]), APIServer)
-	_ = SSHConfig.CmdAsync(s.Masters[0], cmd)
-
-	cmd = s.Command("", InitMaster)
-
-	output := SSHConfig.Cmd(s.Masters[0], cmd)
-	if output == nil {
-		s.Log.Errorf("[%s] install kubernetes failed. please clean and uninstall.", s.Masters[0])
-		os.Exit(1)
-	}
-	decodeOutput(output)
-
-	cmd = `mkdir -p /root/.kube && cp /etc/kubernetes/admin.conf /root/.kube/config && chmod 600 /root/.kube/config`
+	// err := s.appendAPIServer()
+	// if err != nil {
+	// 	s.Log.Warnf("append  %s %s to /etc/hosts err: %s", IPFormat(s.Masters[0]), APIServer, err)
+	// }
+	// //master0 do sth
+	// cmd := fmt.Sprintf("grep -qF '%s %s' /etc/hosts || echo %s %s >> /etc/hosts", IPFormat(s.Masters[0]), APIServer, IPFormat(s.Masters[0]), APIServer)
+	// _ = SSHConfig.CmdAsync(s.Masters[0], cmd)
+	cmd := s.Command()
 	SSHConfig.Cmd(s.Masters[0], cmd)
-}
-
-// SendKubeConfigs
-func (s *SealosInstaller) SendKubeConfigs(masters []string) {
-	s.sendKubeConfigFile(masters, "kubelet.conf")
-	s.sendKubeConfigFile(masters, "admin.conf")
-	s.sendKubeConfigFile(masters, "controller-manager.conf")
-	s.sendKubeConfigFile(masters, "scheduler.conf")
-}
-
-func (s *SealosInstaller) SendJoinMasterKubeConfigs(masters []string) {
-	s.sendKubeConfigFile(masters, "admin.conf")
-	s.sendKubeConfigFile(masters, "controller-manager.conf")
-	s.sendKubeConfigFile(masters, "scheduler.conf")
+	cmd = fmt.Sprintf("mkdir -p /root/.kube && cp /etc/rancher/k3s/k3s.yaml /root/.kube/config && chmod 600 /root/.kube/config")
+	SSHConfig.Cmd(s.Masters[0], cmd)
 }

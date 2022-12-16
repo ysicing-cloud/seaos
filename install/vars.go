@@ -32,6 +32,7 @@ var (
 	APIServerCertSANs []string
 	SSHConfig         sshutil.SSH
 	APIServer         string
+	Token             string
 	CriSocket         string
 	CgroupDriver      string
 	KubeadmAPI        string

@@ -95,51 +95,25 @@ func getApiserverHost(ipAddr string) (host string) {
 	return fmt.Sprintf("%s %s", ipAddr, APIServer)
 }
 
-// sendJoinCPConfig send join CP nodes configuration
-func (s *SealosInstaller) sendJoinCPConfig(joinMaster []string) {
-	var wg sync.WaitGroup
-	for _, master := range joinMaster {
-		wg.Add(1)
-		go func(master string) {
-			defer wg.Done()
-			cgroup := ""
-			templateData := string(JoinTemplate(IPFormat(master), cgroup))
-			cmd := fmt.Sprintf(`echo "%s" > /root/kubeadm-join-config.yaml`, templateData)
-			_ = SSHConfig.CmdAsync(master, cmd)
-		}(master)
-	}
-	wg.Wait()
-}
-
 // JoinMasters is
 func (s *SealosInstaller) JoinMasters(masters []string) {
 	var wg sync.WaitGroup
-	//copy certs & kube-config
-	s.SendJoinMasterKubeConfigs(masters)
-	s.sendNewCertAndKey(masters)
-	// send CP nodes configuration
-	s.sendJoinCPConfig(masters)
-
 	//join master do sth
-	cmd := s.Command("", JoinMaster)
+	cmd := s.Command()
 	for _, master := range masters {
 		wg.Add(1)
 		go func(master string) {
 			defer wg.Done()
-			// hostname := GetRemoteHostName(master)
-			// certCMD := cert.CMD(APIServerCertSANs, IPFormat(master), hostname, SvcCIDR, DNSDomain)
-			// _ = SSHConfig.CmdAsync(master, certCMD)
-
-			cmdHosts := fmt.Sprintf("echo %s >> /etc/hosts", getApiserverHost(IPFormat(s.Masters[0])))
-			_ = SSHConfig.CmdAsync(master, cmdHosts)
+			s.genMasterService(false, "/tmp/k3s.masterx.service")
+			SSHConfig.CopyLocalToRemote(master, "/tmp/k3s.masterx.service", "/etc/systemd/system/k3s.service")
+			// cmdHosts := fmt.Sprintf("echo %s >> /etc/hosts", getApiserverHost(IPFormat(s.Masters[0])))
+			// _ = SSHConfig.CmdAsync(master, cmdHosts)
 			// cmdMult := fmt.Sprintf("%s --apiserver-advertise-address %s", cmd, IpFormat(master))
 			_ = SSHConfig.CmdAsync(master, cmd)
-			cmdHosts = fmt.Sprintf(`sed "s/%s/%s/g" -i /etc/hosts`, getApiserverHost(IPFormat(s.Masters[0])), getApiserverHost(IPFormat(master)))
-			_ = SSHConfig.CmdAsync(master, cmdHosts)
-			copyk8sConf := `rm -rf .kube/config && mkdir -p /root/.kube && cp /etc/kubernetes/admin.conf /root/.kube/config && chmod 600 /root/.kube/config`
+			// cmdHosts = fmt.Sprintf(`sed "s/%s/%s/g" -i /etc/hosts`, getApiserverHost(IPFormat(s.Masters[0])), getApiserverHost(IPFormat(master)))
+			// _ = SSHConfig.CmdAsync(master, cmdHosts)
+			copyk8sConf := `rm -rf .kube/config && mkdir -p /root/.kube && cp -a /etc/rancher/k3s/k3s.yaml /root/.kube/config && chmod 600 /root/.kube/config`
 			_ = SSHConfig.CmdAsync(master, copyk8sConf)
-			cleaninstall := `rm -rf /root/kube || :`
-			_ = SSHConfig.CmdAsync(master, cleaninstall)
 		}(master)
 	}
 	wg.Wait()
@@ -152,16 +126,14 @@ func (s *SealosInstaller) JoinNodes() {
 	for _, master := range s.Masters {
 		masters += fmt.Sprintf(" --rs %s:6443", IPFormat(master))
 	}
+	cmd := s.Command()
 	ipvsCmd := fmt.Sprintf("sealos ipvs --vs %s:6443 %s --health-path /healthz --health-schem https --run-once", VIP, masters)
 	for _, node := range s.Nodes {
 		wg.Add(1)
 		go func(node string) {
 			defer wg.Done()
-			// send join node config
-			cgroup := ""
-			templateData := string(JoinTemplate("", cgroup))
-			cmdJoinConfig := fmt.Sprintf(`echo "%s" > /root/kubeadm-join-config.yaml`, templateData)
-			_ = SSHConfig.CmdAsync(node, cmdJoinConfig)
+			s.genWorkerService("/tmp/k3s.worker.service")
+			s.sendFile([]string{node}, "/tmp/k3s.worker.service", "/etc/systemd/system/k3s.service")
 
 			cmdHosts := fmt.Sprintf("echo %s %s >> /etc/hosts", VIP, APIServer)
 			_ = SSHConfig.CmdAsync(node, cmdHosts)
@@ -176,14 +148,13 @@ func (s *SealosInstaller) JoinNodes() {
 			}
 
 			_ = SSHConfig.CmdAsync(node, ipvsCmd) // create ipvs rules before we join node
-			cmd := s.Command("", JoinNode)
 			//create lvscare static pod
 			yaml := ipvs.LvsStaticPodYaml(VIP, MasterIPs, LvscareImage)
 			_ = SSHConfig.CmdAsync(node, cmd)
-			_ = SSHConfig.Cmd(node, "mkdir -p /etc/kubernetes/manifests")
-			SSHConfig.CopyConfigFile(node, "/etc/kubernetes/manifests/kube-sealyun-lvscare.yaml", []byte(yaml))
+			_ = SSHConfig.Cmd(node, "mkdir -p /var/lib/rancher/k3s/agent/pod-manifests")
+			SSHConfig.CopyConfigFile(node, "/var/lib/rancher/k3s/agent/pod-manifests/kube-sealyun-lvscare.yaml", []byte(yaml))
 
-			cleaninstall := `rm -rf /root/kube`
+			cleaninstall := `rm -rf /tmp/package`
 			_ = SSHConfig.CmdAsync(node, cleaninstall)
 		}(node)
 	}
@@ -203,19 +174,6 @@ func (s *SealosInstaller) lvscare() {
 		}(node)
 	}
 
-	wg.Wait()
-}
-
-func (s *SealosInstaller) sendNewCertAndKey(Hosts []string) {
-	var wg sync.WaitGroup
-	for _, node := range Hosts {
-		wg.Add(1)
-		go func(node string) {
-			defer wg.Done()
-			// TODO
-			// SSHConfig.CopyLocalToRemote(node, CertPath, cert.KubeDefaultCertPath)
-		}(node)
-	}
 	wg.Wait()
 }
 

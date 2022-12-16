@@ -17,6 +17,7 @@ package cmd
 import (
 	"os"
 
+	"github.com/ergoapi/util/expass"
 	"github.com/ergoapi/util/zos"
 	"github.com/spf13/cobra"
 
@@ -112,6 +113,7 @@ func InitCmd(f factory.Factory) *cobra.Command {
 	initCmd.Flags().StringVar(&install.SSHConfig.PkPassword, "pk-passwd", "", "private key password for ssh")
 
 	initCmd.Flags().StringVar(&install.APIServer, "apiserver", "apiserver.cluster.local", "apiserver domain name")
+	initCmd.Flags().StringVar(&install.Token, "token", expass.PwGenAlphaNum(16), "random token")
 	initCmd.Flags().StringVar(&install.VIP, "vip", "10.103.97.2", "virtual ip")
 	initCmd.Flags().StringSliceVar(&install.MasterIPs, "master", []string{}, "k3s multi-masters ex. 192.168.0.2-192.168.0.4")
 	initCmd.Flags().StringSliceVar(&install.NodeIPs, "node", []string{}, "k3s multi-nodes ex. 192.168.0.5-192.168.0.5")

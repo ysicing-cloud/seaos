@@ -15,7 +15,6 @@
 package install
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/ergoapi/log"
@@ -59,42 +58,12 @@ type SealosInstaller struct {
 	Masters   []string
 	Nodes     []string
 	APIServer string
+	Token     string
 	Log       log.Logger `json:"-"`
 }
 
-type CommandType string
-
-// command type
-const InitMaster CommandType = "initMaster"
-const JoinMaster CommandType = "joinMaster"
-const JoinNode CommandType = "joinNode"
-
-func (s *SealosInstaller) Command(version string, name CommandType) (cmd string) {
-	// Please convert your v1beta1 configuration files to v1beta2 using the
-	// "kubeadm config migrate" command of kubeadm v1.15.x, 因此1.14 版本不支持双网卡.
-	commands := map[CommandType]string{
-		InitMaster: `kubeadm init --config=/root/kubeadm-config.yaml --experimental-upload-certs` + vlogToStr(),
-		JoinMaster: fmt.Sprintf("kubeadm join %s:6443 --token %s --discovery-token-ca-cert-hash %s --experimental-control-plane --certificate-key %s"+vlogToStr(), IPFormat(s.Masters[0]), JoinToken, TokenCaCertHash, CertificateKey),
-		JoinNode:   fmt.Sprintf("kubeadm join %s:6443 --token %s --discovery-token-ca-cert-hash %s"+vlogToStr(), VIP, JoinToken, TokenCaCertHash),
-	}
-	//other version >= 1.15.x
-	//todo
-	if VersionToInt(version) >= 115 {
-		commands[InitMaster] = `kubeadm init --config=/root/kubeadm-config.yaml --upload-certs` + vlogToStr()
-		commands[JoinMaster] = "kubeadm join --config=/root/kubeadm-join-config.yaml " + vlogToStr()
-		commands[JoinNode] = "kubeadm join --config=/root/kubeadm-join-config.yaml " + vlogToStr()
-	}
-
-	v, ok := commands[name]
-	defer func() {
-		if r := recover(); r != nil {
-			s.Log.Error("[globals]fetch command error")
-		}
-	}()
-	if !ok {
-		panic(1)
-	}
-	return v
+func (s *SealosInstaller) Command() (cmd string) {
+	return "systemctl enable k3s && systemctl start k3s"
 }
 
 // decode output to join token  hash and key

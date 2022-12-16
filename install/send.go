@@ -17,17 +17,14 @@ package install
 import (
 	"fmt"
 	"path"
+	"sync"
 )
 
 // SendPackage is
 func (s *SealosInstaller) SendPackage() {
 	pkg := path.Base(PkgURL)
-	// rm old sealos in package avoid old version problem. if sealos not exist in package then skip rm
-	kubeHook := fmt.Sprintf("cd /root && rm -rf kube && tar zxvf %s  && cd /root/kube/shell && rm -f ../bin/sealos && bash init.sh && rm -rf /opt/cni/bin/* ", pkg)
-	deletekubectl := `sed -i '/kubectl/d;/sealos/d' /root/.bashrc `
-	completion := "echo 'command -v kubectl &>/dev/null && source <(kubectl completion bash)' >> /root/.bashrc && echo '[ -x /usr/bin/sealos ] && source <(sealos completion bash)' >> /root/.bashrc && source /root/.bashrc"
-	kubeHook = kubeHook + " && " + deletekubectl + " && " + completion
-	PkgURL = SendPackage(PkgURL, s.Hosts, "/root", nil, &kubeHook)
+	afterHook := fmt.Sprintf("cd /tmp && tar zxvf %s  && cd /tmp/package/script && bash init.sh && bash prehook.sh", pkg)
+	PkgURL = SendPackage(PkgURL, s.Hosts, "/tmp", nil, &afterHook)
 }
 
 // SendSealos is send the exec sealos to /usr/bin/sealos
@@ -35,6 +32,17 @@ func (s *SealosInstaller) SendSealos() {
 	// send sealos first to avoid old version
 	sealos := FetchSealosAbsPath()
 	beforeHook := "ps -ef |grep -v 'grep'|grep sealos >/dev/null || rm -rf /usr/bin/sealos"
-	afterHook := "chmod a+x /usr/bin/sealos"
-	SendPackage(sealos, s.Hosts, "/usr/bin", &beforeHook, &afterHook)
+	SendPackage(sealos, s.Hosts, "/usr/bin", &beforeHook, nil)
+}
+
+func (s *SealosInstaller) sendFile(hosts []string, srcfile, dstfile string) {
+	var wg sync.WaitGroup
+	for _, node := range hosts {
+		wg.Add(1)
+		go func(node string) {
+			defer wg.Done()
+			SSHConfig.CopyLocalToRemote(node, srcfile, dstfile)
+		}(node)
+	}
+	wg.Wait()
 }
