@@ -44,7 +44,6 @@ func Execute() {
 	rootCmd.AddCommand(InitCmd(f))
 	rootCmd.AddCommand(JoinCmd(f))
 	rootCmd.AddCommand(CleanCmd(f))
-	rootCmd.AddCommand(ExecCmd(f))
 	rootCmd.AddCommand(IPVSCmd(f))
 	rootCmd.AddCommand(NewRouteCmd(f))
 	if err := rootCmd.Execute(); err != nil {

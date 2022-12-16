@@ -42,7 +42,7 @@ func ExitInitCase() bool {
 	slog := log.GetInstance()
 	// 重大错误直接退出, 不保存配置文件
 	if len(MasterIPs) == 0 {
-		message = ErrorMasterEmpty
+		message = "master not allow null"
 	}
 	// 用户不写 --passwd, 默认走pk, 秘钥如果没有配置ssh互信, 则验证ssh的时候报错. 应该属于preRun里面
 	// first to auth password, second auth pk.
@@ -68,8 +68,7 @@ func ExitDeleteCase(pkgURL string) bool {
 
 func pkgURLCheck(pkgURL string) bool {
 	if !strings.HasPrefix(pkgURL, "http") && !FileExist(pkgURL) {
-		message = ErrorFileNotExist
-		logrus.Error(message + "please check where your PkgUrl is right?")
+		logrus.Error("please check where your PkgUrl is right?")
 		return true
 	}
 	// 判断PkgUrl, 有http前缀时, 下载的文件如果小于400M ,则报错.
@@ -84,7 +83,7 @@ func downloadFileCheck(pkgURL string) bool {
 	if u != nil {
 		req, err := http.NewRequest("GET", u.String(), nil)
 		if err != nil {
-			logrus.Error(ErrorPkgURLNotExist, "please check where your PkgUrl is right?")
+			logrus.Error("please check where your PkgUrl is right?")
 			return false
 		}
 		client := &http.Client{

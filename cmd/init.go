@@ -96,13 +96,6 @@ func InitCmd(f factory.Factory) *cobra.Command {
 			c.Dump(cfgFile)
 			slog.Info(contact)
 		},
-		PreRun: func(cmd *cobra.Command, args []string) {
-			// 使用了cfgFile 就不进行preRun了
-			if cfgFile == "" && install.ExitInitCase() {
-				_ = cmd.Help()
-				os.Exit(install.ErrorExitOSCase)
-			}
-		},
 	}
 
 	// Here you will define your flags and configuration settings.

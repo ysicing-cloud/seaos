@@ -45,7 +45,6 @@ func BuildInit() {
 		Log:       slog,
 	}
 	i.CheckValid()
-	i.Print()
 	i.SendSealos()
 	i.SendPackage()
 	i.InstallMaster0()
@@ -55,7 +54,6 @@ func BuildInit() {
 	if len(nodes) > 0 {
 		i.JoinNodes()
 	}
-	i.PrintFinish()
 }
 
 func getDefaultSANs() string {
